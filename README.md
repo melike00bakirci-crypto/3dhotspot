@@ -1,5 +1,8 @@
 # hotspot3d
 
+[![DOI](https://zenodo.org/badge/DOI/<DOI-buraya>.svg)](https://doi.org/<DOI-buraya>)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants.**
 
 `hotspot3d` takes an HGNC gene symbol, pulls the ClinVar missense record and the AlphaFold

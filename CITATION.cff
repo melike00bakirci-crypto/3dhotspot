@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "hotspot3d: gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
+abstract: >-
+  hotspot3d takes an HGNC gene symbol, retrieves the ClinVar missense record and
+  the AlphaFold structure for its MANE Select transcript, and tests whether
+  pathogenic missense variants cluster in three-dimensional space more than the
+  structure itself would produce by chance under a structure-aware positional
+  null. Significant hotspot centres are delimited, a geometric footprint is
+  built around them, that footprint is stress-tested against centre
+  perturbation, and the surviving regions are annotated with curated
+  functional-mechanism evidence. The methodology is frozen and pre-registered;
+  no step branches on a specific gene or protein.
+authors:
+  - family-names: "Bakırcı"
+    given-names: "Melike"
+  # <TODO: co-authors, ORCID>
+  # - family-names: ""
+  #   given-names: ""
+  #   orcid: "https://orcid.org/0000-0000-0000-0000"
+version: 1.0.0
+date-released: "2026-09-01"
+license: MIT
+repository-code: "https://github.com/melike00bakirci-crypto/3dhotspot"
+keywords:
+  - bioinformatics
+  - structural-bioinformatics
+  - missense-variants
+  - ClinVar
+  - AlphaFold
+  - spatial-statistics
+  - variant-interpretation
