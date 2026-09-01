@@ -20,6 +20,7 @@ authors:
   #   given-names: ""
   #   orcid: "https://orcid.org/0000-0000-0000-0000"
 version: 1.0.0
+doi: "10.5281/zenodo.22237976"
 date-released: "2026-09-01"
 license: MIT
 repository-code: "https://github.com/melike00bakirci-crypto/3dhotspot"

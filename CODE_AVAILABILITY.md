@@ -1,8 +1,10 @@
 # Code and Data Availability
 
-Draft paragraph for the manuscript. Replace `<DOI-buraya>` with the Zenodo DOI once
-minted. Every number below is taken verbatim from the run artefacts named at the end
-of this file; none of it is re-derived here.
+Draft paragraph for the manuscript. Every number below is taken verbatim from the run
+artefacts named at the end of this file; none of it is re-derived here.
+
+Archived at Zenodo under DOI [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976)
+— the version DOI, fixed to release v1.0.0.
 
 ---
 
@@ -10,7 +12,7 @@ of this file; none of it is re-derived here.
 
 > **Code and data availability.** The analysis pipeline (`hotspot3d`) is openly available at
 > https://github.com/melike00bakirci-crypto/3dhotspot and archived at Zenodo under DOI
-> [<DOI-buraya>](https://doi.org/<DOI-buraya>) (version 1.0.0), released under the MIT
+> [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976) (version 1.0.0), released under the MIT
 > licence. The pipeline is gene-independent: no step branches on a specific gene or
 > protein, and every scientific constant is fixed in a frozen, pre-registered
 > configuration file whose SHA-256 digest is recorded in each run.
