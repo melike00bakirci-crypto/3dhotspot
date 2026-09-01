@@ -15,10 +15,12 @@ abstract: >-
 authors:
   - family-names: "Bakırcı"
     given-names: "Melike"
-  # <TODO: co-authors, ORCID>
-  # - family-names: ""
-  #   given-names: ""
-  #   orcid: "https://orcid.org/0000-0000-0000-0000"
+    # <TODO: ORCID>
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: "Özdemir"
+    given-names: "Özkan"
+    # <TODO: ORCID>
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
 version: 1.0.0
 doi: "10.5281/zenodo.22237976"
 date-released: "2026-09-01"
