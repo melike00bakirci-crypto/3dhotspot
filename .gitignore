@@ -19,6 +19,9 @@ htmlcov/
 # --- Pipeline outputs (generated; not source) ---
 # results/ holds multi-GB per-gene run trees incl. >100MB archives.
 results/
+# Alternate roots passed via --results-root (verification runs, replays,
+# rename experiments). Same multi-GB trees, same reason.
+results_*/
 logs/
 
 # Per-gene analysis archives produced from results/

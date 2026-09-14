@@ -31,7 +31,9 @@ def _sublattice_run(n_side, spacing, every=2):
 
 def test_qc_f1_marks_inadmissible_but_keeps_every_metric(params):
     """An excessive-coverage candidate is RETAINED with all metrics and a reason."""
-    centers, universe = _sublattice_run(5, 4.0)
+    # [DECISION-FOOTPRINT-DOMAIN-0001] spacing 4.0 -> 5.5: at the new 5.0 A floor
+    # the old 16 A cube put EVERY radius over QC_F1's 0.50, leaving no passing row.
+    centers, universe = _sublattice_run(6, 5.5)
     solution = build_footprint(centers, universe, params)
 
     rows = export.build_scan_rows(solution)

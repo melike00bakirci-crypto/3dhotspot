@@ -884,6 +884,8 @@ class StageB:
             near_tie_rel=float(self.cfg.get("radius_selection.near_tie_relative_threshold")),
             near_tie_sep_steps=int(
                 self.cfg.get("radius_selection.near_tie_radius_separation_steps")),
+            near_tie_major_rel=float(
+                self.cfg.get("radius_selection.near_tie_major_threshold")),
             step=float(self.cfg.get("radius_domain.step_hot_A")),
             band_fraction=float(self.cfg.get("boundary_diagnostic.band_fraction")),
             bw2_fraction=float(self.cfg.get("boundary_diagnostic.bw2_pareto_fraction")),
@@ -963,14 +965,27 @@ class StageB:
 
         if sel.result.near_tie:
             det = sel.result.near_tie_detail
+            # [REVISED — DECISION-NEAR-TIE-0001] graded severity; no separation clause.
+            tier = det.get("severity", "ADVISORY")
+            severity = Severity.MAJOR if tier == "MAJOR" else Severity.ADVISORY
+            coin = (" At this margin the winner is decided by permutation noise rather "
+                    "than by the data: re-seeding KCNA2 moved r_hot from 10.0 to 9.5 A "
+                    "on identical input, changing the region count from 1 to 2."
+                    if tier == "MAJOR" else "")
             self.books[RADIUS].warnings.add(
                 "NEAR_TIE_RADIUS_SELECTION",
                 f"r = {det['first']:g} A and r = {det['second']:g} A differ by "
-                f"{det['relative_gap']:.4g} in distance-to-ideal (< "
-                f"{self.cfg.get('radius_selection.near_tie_relative_threshold')}) while "
-                f"being more than 2 steps apart.",
-                potential_consequence="A materially different radius was nearly selected.",
-                recommended_action="Non-blocking. Report both radii and their objectives.",
+                f"{det['relative_gap'] * 100:.3g}% in distance-to-ideal "
+                f"(MAJOR below {det.get('major_threshold', 0.01) * 100:g}%, "
+                f"ADVISORY below {det.get('advisory_threshold', 0.05) * 100:g}%)."
+                + coin,
+                severity=severity,
+                potential_consequence=(
+                    "A materially different radius was nearly selected. Downstream "
+                    "counts (significant centers, region count) may flip with it, so "
+                    "no strong claim should rest on this radius alone."),
+                recommended_action=("Non-blocking. The tie chain is deterministic; "
+                                    "report both radii and their objective vectors."),
                 affected_output="radius_decision.json")
             self._escalate(
                 f"Near-tie between r_hot = {det['first']:g} A and {det['second']:g} A.",
@@ -1130,6 +1145,7 @@ class StageB:
             "qc_h4_isolated_center_fraction": dv["QC_H4_isolated_center_fraction"],
             "qc_h4_exceeds_max": dv["QC_H4_exceeds_max"],
             "fold_enrichment_defined": r.fold_enrichment_defined,
+            "neighbor_stability_defined": r.neighbor_stability_defined,
             "n_in_test_family": r.n_in_family,
             # --- v2 §5.2 / §5.4 ------------------------------------------------
             "primary_null": r.extra["primary_null"],

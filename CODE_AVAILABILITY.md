@@ -6,6 +6,26 @@ artefacts named at the end of this file; none of it is re-derived here.
 Archived at Zenodo under DOI [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976)
 — the version DOI, fixed to release v1.0.0.
 
+> ## ⚠ NUMBERS BELOW ARE PRE-DECISION — DO NOT CITE YET
+>
+> Every value in this file comes from `KCNA2_20260819T010956Z_4ec9d6a8_ad8f32d6`, run under
+> `config_sha256 = 4ec9d6a8`. Three methodology decisions have since been authorized and
+> implemented, so that configuration is no longer what the pipeline ships:
+>
+> | Decision | Effect on this file |
+> |---|---|
+> | `DECISION-FOOTPRINT-DOMAIN-0001` | the `r_fp` domain is now `[5.0, min(0.25*D_max, 25.0)]`. Measured on KCNA2 with seeds pinned: **`r_fp` moves 10.0 -> 10.5 A, footprint residues 143 -> 150.** |
+> | `DECISION-NEAR-TIE-0001` | KCNA2's `r_hot` is a **MAJOR near-tie: 0.178%** from the runner-up. The region count (1 vs 2) and the centre count (50 vs 46) flip with it. This must be stated in the manuscript, not omitted. |
+> | `DECISION-STAGE-E-SCOPE-0001` | annotation reporting only; no number here changes. |
+>
+> `config_sha256` has changed, so **results produced under the old configuration are not
+> comparable with results produced under the new one and must not be pooled.** This file
+> will be regenerated in full from a single re-run of the frozen pipeline under the current
+> configuration; until that run completes, treat every figure below as superseded.
+>
+> The prose paragraph and the parameter table are kept verbatim meanwhile so the diff after
+> the re-run shows exactly which quantities moved.
+
 ---
 
 ## Draft paragraph

@@ -21,6 +21,7 @@ REQUIRED_CONFIG_KEYS: list[str] = [
     "footprint_domain.rho_max_rule",
     "footprint_domain.rho_all_source",
     "footprint_domain.post_merge_factor",
+    "footprint_domain.post_merge_factor_caps_rho_max",
     "footprint_domain.dmax_fraction_cap",
     "footprint_domain.hard_ceiling_A",
     "footprint_domain.step_fp_A",
@@ -48,6 +49,7 @@ REQUIRED_CONFIG_KEYS: list[str] = [
     "footprint_selection.distance_metric",
     "footprint_selection.tie_chain",
     "footprint_selection.near_tie_relative_threshold",
+    "footprint_selection.near_tie_major_threshold",
     "footprint_selection.objective_redundancy_abs_rho",
     "footprint_selection.exclude_degenerate_objectives",
     "boundary_diagnostic.band_fraction",
@@ -64,6 +66,7 @@ class FootprintParams:
     # II.9 domain
     rho_min_A: float
     post_merge_factor: float
+    post_merge_factor_caps_rho_max: bool
     dmax_fraction_cap: float
     hard_ceiling_A: float
     step_fp_A: float
@@ -87,6 +90,7 @@ class FootprintParams:
     w_k: float
     distance_metric: str
     near_tie_relative_threshold: float
+    near_tie_major_threshold: float
     near_tie_radius_separation_steps: int
     objective_redundancy_abs_rho: float
     exclude_degenerate_objectives: bool
@@ -154,6 +158,8 @@ class FootprintParams:
         return cls(
             rho_min_A=float(cfg.get("footprint_domain.rho_min_A")),
             post_merge_factor=float(cfg.get("footprint_domain.post_merge_factor")),
+            post_merge_factor_caps_rho_max=bool(
+                cfg.get("footprint_domain.post_merge_factor_caps_rho_max")),
             dmax_fraction_cap=float(cfg.get("footprint_domain.dmax_fraction_cap")),
             hard_ceiling_A=float(cfg.get("footprint_domain.hard_ceiling_A")),
             step_fp_A=float(cfg.get("footprint_domain.step_fp_A")),
@@ -180,6 +186,8 @@ class FootprintParams:
             distance_metric=str(cfg.get("footprint_selection.distance_metric")),
             near_tie_relative_threshold=float(
                 cfg.get("footprint_selection.near_tie_relative_threshold")),
+            near_tie_major_threshold=float(
+                cfg.get("footprint_selection.near_tie_major_threshold")),
             near_tie_radius_separation_steps=int(
                 cfg.get_optional("footprint_selection.near_tie_radius_separation_steps", 2)),
             objective_redundancy_abs_rho=float(
@@ -196,6 +204,7 @@ class FootprintParams:
         return {
             "rho_min_A": self.rho_min_A,
             "post_merge_factor": self.post_merge_factor,
+            "post_merge_factor_caps_rho_max": self.post_merge_factor_caps_rho_max,
             "dmax_fraction_cap": self.dmax_fraction_cap,
             "hard_ceiling_A": self.hard_ceiling_A,
             "step_fp_A": self.step_fp_A,

@@ -66,7 +66,7 @@ R_HOT_SCAN_COLUMNS = [
     "qc_h1_zero_significant_centers", "qc_h2_coverage_exceeds_max",
     "qc_h3_median_n_labeled", "qc_h3_below_threshold",
     "qc_h4_isolated_center_fraction", "qc_h4_exceeds_max",
-    "fold_enrichment_defined", "n_in_test_family",
+    "fold_enrichment_defined", "neighbor_stability_defined", "n_in_test_family",
     # --- v2 §5.2 / §5.4: which null decided, and could it have decided at all --
     "primary_null", "secondary_null", "power_p_res", "power_p_comb_best",
     "power_p_floor", "power_c_1", "power_certificate_passes", "power_binding_floor",
@@ -145,6 +145,11 @@ class RadiusResult:
     bh_boundary_p: float | None
     n_in_family: int
     neighbor_stability: float = 0.0       # filled by the cross-radius pass (II.5D)
+    #: False when S(r) and BOTH neighbours are empty: the 0.0 above is then a
+    #: sentinel for an undefined quantity, not a measured dissimilarity. Reported
+    #: so a reader can tell the two apart; it does NOT change admissibility, which
+    #: v2 explicitly forbids conditioning on significance (QC_H1 is a diagnostic).
+    neighbor_stability_defined: bool = True
     certificate: object | None = None     # per-radius power certificate (v2 §5.4)
     # --- v2 §4: biological-plausibility DIAGNOSTICS (never Pareto objectives) --
     structural_coverage: float = 0.0      # == coverage_fraction; U_struct fraction covered
@@ -382,3 +387,10 @@ def attach_neighbor_stability(results: list[RadiusResult], step: float) -> None:
             if neighbour is not None:
                 sets.append(jaccard(set(r.centers), set(neighbour.centers)))
         r.neighbor_stability = float(np.mean(sets)) if sets else 0.0
+        # Defined only if at least one comparison had a non-empty side. All-empty ->
+        # jaccard(empty, empty) = 0.0 by convention, which is a sentinel, not a
+        # measurement; flag it so the scan table does not present the two alike.
+        r.neighbor_stability_defined = bool(sets) and any(
+            r.centers or by_radius[round(r.radius_A + o, 6)].centers
+            for o in (-step, step)
+            if by_radius.get(round(r.radius_A + o, 6)) is not None)

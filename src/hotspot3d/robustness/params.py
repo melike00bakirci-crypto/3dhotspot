@@ -66,6 +66,15 @@ class RobustnessParams:
                 "FROZEN (A21): the perturbation universe is SIGNIFICANT_HOTSPOT_CENTERS "
                 "— geometric center positions, never ClinVar records."
             )
+        if not bool(cfg.get("robustness.secondary_fixed_radius_reconstruction")):
+            raise BlockedError(
+                "DECISION-STAGE-D-FIXED-RFP-0001 made fixed-radius reconstruction the "
+                "SOLE per-iteration reconstruction: the re-deriving 'primary' path no "
+                "longer exists, so there is nothing for this key to switch off. Setting "
+                "it false would silently change nothing. If the intent is to restore "
+                "per-iteration radius re-derivation, that needs a new decision record "
+                "reversing DECISION-STAGE-D-FIXED-RFP-0001, not a config flag."
+            )
         if bool(cfg.get("robustness.rerun_hotspot_pipeline")):
             raise BlockedError(
                 "FROZEN (F11/A7): full-pipeline re-execution is a WITHDRAWN design, "

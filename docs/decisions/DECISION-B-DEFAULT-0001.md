@@ -79,11 +79,25 @@ Only the single scalar `B_default` moved, in the three places above.
 
 The test suite was not updated. In particular:
 
-- `tests/hotspot_stats/test_stage.py::test_production_default_is_ten_thousand_permutations` now
-  asserts a stale literal (`== 10_000`) against the shipped config and will fail.
-- `tests/integration/test_config_provenance.py` (`test_d_production_config_is_unchanged_and_
-  unwritten`) asserts `shipped.get("permutation.B_default") == 10000` and will fail for the same
-  reason.
+> **PARTIALLY CLOSED 2026-09-14.** The mechanical constant swaps below are now done. The
+> fixture recalibration is still open and is still `hotspot-statistics`' call, exactly as
+> this section says. Full inventory of what the stale value broke, measured 2026-09-13:
+> 5 failures in the unit suite plus 6 errors in `tests/integration`, across five files.
+
+- ~~`tests/hotspot_stats/test_stage.py::test_production_default_is_ten_thousand_permutations`~~
+  **DONE 2026-09-14** — asserts `== 100_000`; renamed to
+  `test_production_default_permutation_count`, since the old name asserted the value in its
+  own title. Reference in `tests/integration/test_lead_audit.py` updated.
+- ~~`tests/integration/test_config_provenance.py`~~ **DONE 2026-09-12** — asserts `== 100000`.
+- `tests/hotspot_stats/test_stage_a_to_b.py` — **DONE 2026-09-14** for the two
+  `handoff.payload["B"] == 10_000` echoes and the module docstring. **STILL OPEN:**
+  `test_large_family_trips_the_permutation_resolution_diagnostic` asserts
+  `PERMUTATION_RESOLUTION_LIMITED is True` and `p_res == 1/10_001`. C1 fires only when
+  `m > q*(B+1)`; at B=100,000 that is `m > 5000` and the fixture realizes far less. This
+  module deliberately runs through the REAL `run_stage_a`, which refuses a gene overlay, so
+  B cannot be lowered for it — same recalibration problem as the module below.
+- `tests/data_structure/test_fixture_contract.py::test_permutation_resolution_case_makes_the_floor_reachable`
+  — **STILL OPEN**, the fixture-side statement of the same precondition (`620 > 5000` fails).
 - `tests/integration/test_underpowered_terminal_state.py` is calibrated to the OLD frozen value
   in a way that is not a mechanical constant swap: its synthetic `permutation_resolution` fixture
   was deliberately tuned (via a swept `run_id`) to realize a test family `m ≈ 529`, chosen to

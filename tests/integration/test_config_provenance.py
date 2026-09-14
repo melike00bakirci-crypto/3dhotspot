@@ -196,7 +196,9 @@ def test_d_production_config_is_unchanged_and_unwritten(tmp_path):
     shipped = load_config(PIPELINE_CONFIG)
     assert shipped.get("robustness.N_CAP") == 10000, (
         "config/pipeline.yaml no longer ships the production perturbation budget")
-    assert shipped.get("permutation.B_default") == 10000
+    # DECISION-B-DEFAULT-0001 raised this from 10000; the shipped value is the
+    # production one and this assertion tracks it.
+    assert shipped.get("permutation.B_default") == 100000
     assert_frozen_methodology(shipped)
 
     # A full snapshot, taken through an overlay, must leave the base file alone.

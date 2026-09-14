@@ -109,7 +109,7 @@ def test_production_config_ships_the_full_robustness_budget(repo_root):
     conftest.py``). That reduction is a test-execution choice and must never
     reach the file a real run reads, so the shipped value is asserted here
     against ``config/pipeline.yaml`` directly rather than through the fixture —
-    the same guard ``test_production_default_is_ten_thousand_permutations``
+    the same guard ``test_production_default_permutation_count``
     provides for ``permutation.B_default``.
 
     The frozen assertions are re-checked on the shipped file too: the fixture

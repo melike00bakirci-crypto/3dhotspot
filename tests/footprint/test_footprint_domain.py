@@ -27,28 +27,36 @@ def test_merge_scales_are_mst_edge_weights_halved(params):
     assert domain.rho_all == pytest.approx(4.0)
 
 
-def test_rho_max_is_the_minimum_of_the_three_frozen_terms(params):
-    centers = np.array([[0.0, 0, 0], [6.0, 0, 0]])          # rho_all = 3.0
-    # 1.25 * rho_all = 3.75 binds against 0.25 * D_max = 25 and the 20 A ceiling
-    domain = derive_domain(centers, _universe(extent=100.0), params)
-    assert domain.rho_max == pytest.approx(3.75)
-    assert domain.binding_constraint == "1.25*rho_all"
+def test_rho_max_is_the_minimum_of_the_two_frozen_terms(params):
+    """DECISION-FOOTPRINT-DOMAIN-0001: rho_max = min(0.25 * D_max, 25.0).
 
-    # widely separated centers in a small protein make 0.25 * D_max bind instead
-    centers = np.array([[0.0, 0, 0], [40.0, 0, 0]])         # 1.25 * rho_all = 25
+    The MST-derived ``1.25 * rho_all`` term no longer participates in the bound.
+    """
+    # Tightly packed centers. 1.25 * rho_all = 3.75 would once have bound here and
+    # emptied the domain against the floor — the exact defect that blocked 6 of 8
+    # BLOCKED genes in the ACMG SF v3.2 batch. It must no longer bind at all.
+    centers = np.array([[0.0, 0, 0], [6.0, 0, 0]])          # rho_all = 3.0
+    domain = derive_domain(centers, _universe(extent=200.0), params)
+    assert domain.rho_all == pytest.approx(3.0)             # still computed...
+    assert "1.25*rho_all" not in dict(domain.rho_max_candidates)   # ...never a cap
+    assert domain.rho_max == pytest.approx(25.0)            # 0.25 * 200 = 50 > 25
+    assert domain.binding_constraint == "hard_ceiling"
+
+    # widely separated centers in a small protein make 0.25 * D_max bind
+    centers = np.array([[0.0, 0, 0], [40.0, 0, 0]])
     domain = derive_domain(centers, _universe(extent=30.0), params)
     assert domain.rho_max == pytest.approx(7.5)             # 0.25 * 30
     assert domain.binding_constraint == "0.25*D_max"
 
-    # widely separated centers in a large protein hit the 20 A hard ceiling
+    # a large protein hits the 25 A hard ceiling
     centers = np.array([[0.0, 0, 0], [120.0, 0, 0]])        # rho_all = 60
     domain = derive_domain(centers, _universe(extent=400.0), params)
-    assert domain.rho_max == pytest.approx(20.0)
-    assert domain.binding_constraint == "hard_ceiling_20A"
+    assert domain.rho_max == pytest.approx(25.0)
+    assert domain.binding_constraint == "hard_ceiling"
 
 
 def test_single_center_drops_the_post_merge_term(params):
-    """|S| = 1 -> the MST is empty -> rho_max = min(0.25 D_max, 20), recorded."""
+    """|S| = 1 -> the MST is empty -> rho_max = min(0.25 D_max, 25), recorded."""
     domain = derive_domain(np.array([[10.0, 0, 0]]), _universe(extent=60.0), params)
 
     assert domain.mst == ()
@@ -60,12 +68,17 @@ def test_single_center_drops_the_post_merge_term(params):
 
 
 def test_empty_domain_is_a_negative_result_not_a_crash(params):
-    """rho_min > rho_max terminates the chain honestly (P4)."""
-    centers = np.array([[0.0, 0, 0], [0.6, 0, 0]])          # rho_all = 0.3
+    """rho_min > rho_max terminates the chain honestly (P4).
+
+    Under DECISION-FOOTPRINT-DOMAIN-0001 centre packing can no longer empty the
+    domain; only a protein too small to host a 5 A footprint can. D_max < 20 A
+    means 0.25 * D_max < the 5.0 A floor.
+    """
+    centers = np.array([[0.0, 0, 0], [6.0, 0, 0]])
     with pytest.raises(NegativeResult) as excinfo:
-        derive_domain(centers, _universe(extent=20.0), params)
+        derive_domain(centers, _universe(extent=16.0), params)   # 0.25 * 16 = 4.0
     assert excinfo.value.condition == "NO_ADMISSIBLE_FOOTPRINT_DOMAIN"
-    assert excinfo.value.context["binding_constraint"] == "1.25*rho_all"
+    assert excinfo.value.context["binding_constraint"] == "0.25*D_max"
 
 
 def test_grid_is_uniform_and_never_adaptive():

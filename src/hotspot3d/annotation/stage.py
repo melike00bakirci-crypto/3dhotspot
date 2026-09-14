@@ -366,14 +366,22 @@ def _execute(
 
     # 7 — mechanism curation, structurally blind to hotspot membership.
     records = list(source.literature_mechanisms(data.gene))
-    if getattr(source, "literature_mechanisms_not_run", False):
+    mechanisms_not_run = bool(getattr(source, "literature_mechanisms_not_run", False))
+    if mechanisms_not_run:
+        # [REVISED — DECISION-STAGE-E-SCOPE-0001] ADVISORY, not MAJOR. MAJOR means
+        # "may materially change interpretation; must be read" and is for run-specific
+        # anomalies. No curated literature source ships with this build, so this fires
+        # on EVERY run: as a MAJOR it carries no discriminating information and
+        # desensitises the reader to real MAJOR warnings. ADVISORY — "worth knowing;
+        # does not affect validity" — is the accurate level: the caveat matters, but it
+        # does not invalidate the structural annotation Stage E does produce.
         warnings.add(
             "LITERATURE_MECHANISMS_NOT_RUN",
             "literature_mechanisms was not attempted by this run's annotation "
             "source (out of scope for this build). Every functional-mechanism "
             "label below defaults to Not_Experimentally_Characterized as a "
             "NON-RESULT of an unrun search, not a negative finding.",
-            severity=Severity.MAJOR,
+            severity=Severity.ADVISORY,
             potential_consequence=(
                 "mechanism_by_hotspot.tsv, functional_mechanism_variants.tsv and "
                 "the post hoc gate all reflect zero literature evidence, which "
@@ -430,6 +438,15 @@ def _execute(
     )
 
     counts = mechanism_counts(curated)
+    if mechanisms_not_run:
+        # [REVISED — DECISION-STAGE-E-SCOPE-0001] An unrun search must not report
+        # zeros. All-zero counts read as "we curated the literature and found no
+        # mechanism evidence" — the opposite of the truth — and they contradict this
+        # stage's own warning, which states every label DEFAULTS to
+        # Not_Experimentally_Characterized. None is the pipeline's existing marker for
+        # a quantity that was never measured. The key itself stays: HANDOFF_05_KEYS is
+        # frozen, only the value shape changes.
+        counts = {category: None for category in counts}
 
     # 9 — the gate. Numbers are recorded whether it passes or fails.
     evaluation = evaluate_gate(curated, gate)
@@ -493,7 +510,12 @@ def _execute(
         "posthoc_gate_numbers": evaluation.as_numbers(),
         "robustness_profile": handoff_04.payload["robustness_profile"],
         "global_clustering_flag": data.flags["global_clustering_flag"],
-        "interpretation_caveats": list(STANDING_CAVEATS),
+        "interpretation_caveats": list(STANDING_CAVEATS) + ([
+            "literature_mechanisms is out of scope for this build: no curated "
+            "source was queried. mechanism_counts is null per category to mark "
+            "the quantity as NOT MEASURED rather than measured-as-zero, and the "
+            "post hoc mechanism-spatial gate therefore cannot pass."
+        ] if mechanisms_not_run else []),
         "upstream_handoff_hashes": data.upstream_hashes,
         "residue_objects": {
             "SIGNIFICANT_HOTSPOT_CENTERS": sum(

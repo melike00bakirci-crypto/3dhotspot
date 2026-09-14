@@ -92,6 +92,7 @@ def run_selection(candidates: list[Candidate],
         near_tie_rel=params.near_tie_relative_threshold,
         near_tie_sep_steps=params.near_tie_radius_separation_steps,
         step=step,
+        near_tie_major_rel=params.near_tie_major_threshold,
     )
 
 

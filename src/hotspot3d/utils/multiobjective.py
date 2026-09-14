@@ -131,7 +131,8 @@ def select(candidates: Sequence[Candidate],
            metric: str = "L2",
            near_tie_rel: float = 0.05,
            near_tie_sep_steps: int = 2,
-           step: float = 0.5) -> SelectionResult:
+           step: float = 0.5,
+           near_tie_major_rel: float = 0.01) -> SelectionResult:
     """Run the frozen selection machinery end to end.
 
     ``tie_chain`` names objectives (after the implicit leading ``distance``) to break
@@ -162,14 +163,34 @@ def select(candidates: Sequence[Candidate],
     )
     selected = ranked[0]
 
+    # [REVISED — DECISION-NEAR-TIE-0001] Two changes.
+    #
+    # 1. The radius-separation condition is gone. It suppressed the near-tie flag
+    #    whenever the top two candidates were ADJACENT on the grid, on the premise
+    #    that neighbouring radii give similar answers. KCNA2 refutes that premise:
+    #    9.5 A and 10.0 A differ by 0.18% in distance, and the result flips between
+    #    2 regions / 46 centers and 1 region / 50 centers. Adjacency is exactly where
+    #    a tie is hardest to see in the scan table and therefore most worth flagging.
+    #
+    # 2. Severity is graded by how close the two actually are. Below
+    #    ``near_tie_major_rel`` the winner is decided by permutation noise rather
+    #    than by the data — demonstrated: re-seeding KCNA2 moved r_hot from 10.0 to
+    #    9.5 on identical data. That warrants MAJOR. A 1-5% gap is worth knowing but
+    #    is not a coin flip, so it is ADVISORY.
+    #
+    # ``near_tie_sep_steps`` and ``step`` are retained in the signature for API
+    # stability and provenance; neither gates the flag any more.
     near_tie, detail = False, {}
     if len(ranked) >= 2:
         d1, d2 = distances[ranked[0]], distances[ranked[1]]
         rel = abs(d1 - d2) / d1 if d1 > 0 else 0.0
-        if rel < near_tie_rel and abs(ranked[0] - ranked[1]) > near_tie_sep_steps * step:
+        if rel < near_tie_rel:
             near_tie = True
             detail = {"first": ranked[0], "second": ranked[1], "d_first": d1,
-                      "d_second": d2, "relative_gap": rel}
+                      "d_second": d2, "relative_gap": rel,
+                      "severity": "MAJOR" if rel < near_tie_major_rel else "ADVISORY",
+                      "major_threshold": near_tie_major_rel,
+                      "advisory_threshold": near_tie_rel}
 
     return SelectionResult(
         selected_key=selected,

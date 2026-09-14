@@ -2,8 +2,8 @@
 
     merge scales : {w_k / 2} over the edges of the Euclidean MST of S
     rho_all      : max_k w_k / 2
-    rho_min      : 3.0 A                                   (frozen)
-    rho_max      : min(1.25 * rho_all, 0.25 * D_max, 20.0) (frozen)
+    rho_min      : 5.0 A                                   (DECISION-FOOTPRINT-DOMAIN-0001)
+    rho_max      : min(0.25 * D_max, 25.0)                 (DECISION-FOOTPRINT-DOMAIN-0001)
     step_fp      : 0.5 A, uniform and never adaptive
 
 The merge scales **inform the upper bound and are reported as events; they never
@@ -85,7 +85,7 @@ def derive_domain(center_coords: np.ndarray, universe_coords: np.ndarray,
 
     candidates: dict[str, float] = {
         "0.25*D_max": cap_dmax,
-        "hard_ceiling_20A": ceiling,
+        "hard_ceiling": ceiling,
     }
     if n_s == 1:
         # |S| = 1 -> MST empty -> rho_all undefined; the post-merge term drops out.
@@ -93,7 +93,13 @@ def derive_domain(center_coords: np.ndarray, universe_coords: np.ndarray,
         single_case = True
     else:
         rho_all = float(max(merge_scales))
-        candidates["1.25*rho_all"] = params.post_merge_factor * rho_all
+        # [REVISED — DECISION-FOOTPRINT-DOMAIN-0001] rho_all is still computed and
+        # still reported as merge events; it no longer CAPS rho_max. It measures how
+        # tightly the centers are packed, which is not what r_fp is for: with
+        # sequence-adjacent centers 1.25*rho_all falls below the floor and empties
+        # the domain.
+        if params.post_merge_factor_caps_rho_max:
+            candidates["1.25*rho_all"] = params.post_merge_factor * rho_all
         single_case = False
 
     binding = min(candidates, key=lambda k: (candidates[k], k))

@@ -207,7 +207,12 @@ FROZEN_ASSERTIONS: list[tuple[str, Any]] = [
     ("radius_selection.w_k", 1.0),
     ("radius_selection.distance_metric", "L2"),
     ("radius_selection.normalization", "min_max"),
-    ("footprint_domain.rho_min_A", 3.0),
+    # DECISION-FOOTPRINT-DOMAIN-0001: the r_fp domain is [5.0, min(0.25*D_max, 25.0)].
+    ("footprint_domain.rho_min_A", 5.0),  # DECISION-FOOTPRINT-DOMAIN-0001 (was 3.0)
+    ("footprint_domain.hard_ceiling_A", 25.0),  # DECISION-FOOTPRINT-DOMAIN-0001 (was 20.0)
+    # The substantive half of that decision: rho_all measures centre packing, which is
+    # not what r_fp is for. Pinned so it cannot be flipped back silently.
+    ("footprint_domain.post_merge_factor_caps_rho_max", False),
     ("footprint_domain.step_fp_A", 0.5),
     ("footprint_domain.bound_below_by_r_hot", False),
     ("footprint_qc.QC_F1_max_coverage", 0.50),

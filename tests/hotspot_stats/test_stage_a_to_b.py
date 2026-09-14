@@ -6,8 +6,8 @@ schema rather than against a hand-built imitation of it — which is the only wa
 column allowlist, the manifest and the review-star channel are really tested.
 
 Stage A refuses a gene overlay (it re-hashes `config/pipeline.yaml` and requires an
-exact match), so these runs use the FROZEN configuration unmodified: ``B = 10000``,
-``q = 0.05``, ``BH``. They are correspondingly slow.
+exact match), so these runs use the FROZEN configuration unmodified: ``B = 100000``
+(DECISION-B-DEFAULT-0001), ``q = 0.05``, ``BH``. They are correspondingly slow.
 
 Assertions are about *contracts and branches*, never about specific p-values, radii
 or hotspot counts — those are the pipeline's to compute, and the fixture documents
@@ -43,7 +43,7 @@ def _run(tmp_path, case_name: str, run_id: str = "20250101T000000Z_ab_test"):
     return ctx, handoff_01, run_stage_b(ctx, upstream=handoff_01), case
 
 
-# Each case is a full Stage A + Stage B execution at the frozen B = 10000 (~15 s).
+# Each case is a full Stage A + Stage B execution at the frozen B = 100000.
 # Cases are therefore executed once per module and shared by every test that
 # interrogates them. No assertion is weakened; the tests read the same completed
 # runs they previously each recomputed.
@@ -83,7 +83,7 @@ def test_stage_b_consumes_a_real_handoff_01(clustered_run):
     assert h2.config_sha256 == h1.config_sha256 == ctx.config.sha256
     for key in HANDOFF_REQUIRED_KEYS["handoff_02"]:
         assert key in h2.payload, key
-    assert h2.payload["B"] == 10_000          # the FROZEN default, unmodified
+    assert h2.payload["B"] == 100_000         # the FROZEN default (DECISION-B-DEFAULT-0001)
     assert h2.payload["q"] == 0.05 and h2.payload["fdr_method"] == "BH"
     assert verify_manifest(h2.manifest, ctx.run_root) == []
 
@@ -275,7 +275,7 @@ def test_run_id_changes_the_derived_seeds_but_not_the_contract(clustered_run,
     assert all(a.payload["derived_seeds"][c] != b.payload["derived_seeds"][c]
                for c in shared)
     for handoff in (a, b):
-        assert handoff.payload["B"] == 10_000
+        assert handoff.payload["B"] == 100_000     # DECISION-B-DEFAULT-0001
         assert handoff.payload["fdr_method"] == "BH"
         for stage in STAGES:
             for rel in EXPECTED_OUTPUTS[stage]:

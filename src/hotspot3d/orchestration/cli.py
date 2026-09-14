@@ -135,8 +135,11 @@ def _synthetic_sources(case_name: str) -> tuple[SourceBundle, bool]:
             f"run from the repository root with the dev environment active"
         ) from exc
     case = make_synthetic_case(case_name)
-    return SourceBundle(variant_source=case.variant_source,
-                        structure_source=case.structure_source,
+    # The Stage A fixture exposes ONE provider satisfying both the VariantSource and
+    # the StructureSource protocol (see tests/fixtures/synthetic_clinvar.py), so the
+    # same object fills both slots. There is no `case.variant_source`.
+    return SourceBundle(variant_source=case.source,
+                        structure_source=case.source,
                         annotation_source=MockAnnotationSource()), True
 
 

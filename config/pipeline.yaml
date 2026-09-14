@@ -276,8 +276,13 @@ radius_selection:
   utopia_point: [1.0, 1.0, 1.0, 1.0]  # FROZEN (F15)
   distance_metric: L2                 # FROZEN (F15)
   tie_chain: [distance, neighbor_stability, perm_evidence_zg, smaller_radius]  # FROZEN (II.6)
-  near_tie_relative_threshold: 0.05   # FROZEN (II.6) — non-blocking warning
-  near_tie_radius_separation_steps: 2 # FROZEN (II.6)
+  # [REVISED — DECISION-NEAR-TIE-0001] graded, and no longer gated on separation.
+  near_tie_relative_threshold: 0.05   # ADVISORY boundary — non-blocking warning
+  near_tie_major_threshold: 0.01      # below this the seed, not the data, decides
+  # Retained for provenance only; it no longer gates the flag. It suppressed the
+  # warning for ADJACENT radii, which is where ties are least visible (KCNA2:
+  # 9.5 vs 10.0 A at 0.18% flips 1 region <-> 2 regions).
+  near_tie_radius_separation_steps: 2 # INERT (was FROZEN II.6)
   objective_redundancy_abs_rho: 0.98  # escalation threshold
   # [NEW — Workflow v2 §4] An objective with an identical value at every admissible
   # radius discriminates nothing; including it adds a constant to every candidate's
@@ -353,13 +358,24 @@ footprint_geometry:
 
 # --- II.9 — candidate r_fp search domain ------------------------------------
 footprint_domain:
-  rho_min_A: 3.0                      # FROZEN (II.9)
-  rho_max_rule: "min(1.25 * rho_all, 0.25 * D_max, 20.0)"   # FROZEN (II.9)
+  # [REVISED — DECISION-FOOTPRINT-DOMAIN-0001] The domain is now [5.0,
+  # min(0.25*D_max, 25.0)], structurally identical in FORM to radius_domain (II.2).
+  # The MST-derived 1.25*rho_all term no longer caps rho_max: rho_all measures how
+  # tightly the CENTERS are packed, which is not what the footprint radius is for.
+  # With sequence-adjacent centers the longest MST edge is one Ca-Ca step (~3.8 A),
+  # so 1.25*rho_all ~ 2.4 A < the old 3.0 A floor and the domain came out EMPTY —
+  # 6 of 8 BLOCKED genes in the ACMG SF v3.2 batch, plus 18 genes pinned to the floor.
+  # Merge scales are still computed and still reported as merge events.
+  rho_min_A: 5.0                      # REVISED (was 3.0) — mirrors radius_domain.R_FLOOR
+  rho_max_rule: "min(0.25 * D_max, 25.0)"   # REVISED — MST term removed from the bound
   rho_all_source: mst_merge_scales    # FROZEN (II.9) — single-linkage heights halved
-  post_merge_factor: 1.25             # FROZEN (II.9)
-  dmax_fraction_cap: 0.25             # FROZEN (II.9)
-  hard_ceiling_A: 20.0                # FROZEN (II.9)
+  post_merge_factor_caps_rho_max: false   # REVISED — the substantive half of this change
+  post_merge_factor: 1.25             # retained: merge-event reporting and provenance
+  dmax_fraction_cap: 0.25             # FROZEN (II.9) — unchanged, never was the defect
+  hard_ceiling_A: 25.0                # REVISED (was 20.0) — mirrors radius_domain.R_CEIL
   step_fp_A: 0.5                      # FROZEN (II.9) — uniform, never adaptive
+  # F10 intact: the 5.0 floor is a fixed constant that happens to equal the II.2
+  # constant. It is NOT derived from any run's selected r_hot.
   bound_below_by_r_hot: false         # FROZEN (F10) — r_fp is independent of r_hot
 
 # --- II.10 — footprint QC and selection -------------------------------------
@@ -393,7 +409,8 @@ footprint_selection:
   utopia_point: [1.0, 1.0, 1.0, 1.0]
   distance_metric: L2
   tie_chain: [distance, stability, compactness, smaller_radius]   # FROZEN (II.10)
-  near_tie_relative_threshold: 0.05
+  near_tie_relative_threshold: 0.05   # ADVISORY boundary
+  near_tie_major_threshold: 0.01      # DECISION-NEAR-TIE-0001 — MAJOR below this
   objective_redundancy_abs_rho: 0.98
   # [NEW — Workflow v2 §4/§7] Same degenerate-objective neutrality Stage B
   # carries; the shared utils.multiobjective machinery already implements the
@@ -411,7 +428,12 @@ robustness:
   N_CAP: 10000                        # config knob with a stated cost model
   sampling: seeded_combinatorial_unranking     # FROZEN (A19) — without replacement
   budget_allocation: equal_across_remaining_levels   # FROZEN (A19)
-  secondary_fixed_radius_reconstruction: true  # FROZEN (II.11)
+  # VESTIGIAL (DECISION-STAGE-D-FIXED-RFP-0001, 2026-08-18). That decision made
+  # fixed-radius reconstruction the SOLE per-iteration path and deleted the
+  # re-deriving 'primary' one, but deliberately left this file byte-unchanged, so the
+  # key survived its own meaning. It can only be true; robustness/params.py now
+  # refuses false rather than accepting it and silently doing nothing.
+  secondary_fixed_radius_reconstruction: true  # was FROZEN (II.11)
   preservation_threshold_primary: 0.50   # FROZEN (A20)
   preservation_threshold_secondary: 0.70 # FROZEN (A20)
   bootstrap:

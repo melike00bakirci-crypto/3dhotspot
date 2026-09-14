@@ -688,7 +688,7 @@ def test_bh_margin_is_reported_against_the_rank_one_critical_value(shared_positi
 
 
 @pytest.mark.unit
-def test_production_default_is_ten_thousand_permutations():
+def test_production_default_permutation_count():
     """The FROZEN production configuration, asserted independently of any fixture.
 
     Some tests in this module deliberately run at a reduced B through an explicit
@@ -699,7 +699,9 @@ def test_production_default_is_ten_thousand_permutations():
     is covered by test_non_default_b_is_blocked_outside_synthetic_mode.
     """
     cfg = load_config(Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml")
-    assert cfg.get("permutation.B_default") == 10_000
+    # DECISION-B-DEFAULT-0001 raised this from 10_000; B is a resolution parameter,
+    # not a threshold, so no scientific criterion moved with it.
+    assert cfg.get("permutation.B_default") == 100_000
     assert cfg.get("fdr.q") == 0.05
     assert cfg.get("fdr.method") == "BH"
     assert cfg.get("loo_mcc.kappa") == 2.0

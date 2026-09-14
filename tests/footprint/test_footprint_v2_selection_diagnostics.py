@@ -66,7 +66,12 @@ def test_geometrically_inadmissible_candidates_never_strike_the_footprint(params
     significance concept at all for r_fp) and a footprint is still selected —
     partial QC_F failure is never treated as 'no footprint found'.
     """
-    centers, universe = _sublattice_run(5, 4.0)
+    # [DECISION-FOOTPRINT-DOMAIN-0001] spacing widened 4.0 -> 5.5 (the lattice
+    # helper's own default). At the new 5.0 A floor the old 16 A cube had EVERY
+    # radius over QC_F1's 0.50, so the mix this test needs no longer existed.
+    # Now: domain [5.0, 11.9], coverage 0.125 at the floor, crossing 0.50 at
+    # r = 8.0 -> 6 admissible, 9 inadmissible.
+    centers, universe = _sublattice_run(6, 5.5)
     n_centers_before = len(centers)
 
     solution = build_footprint(centers, universe, params)

@@ -142,12 +142,13 @@ def run_selection(results: list[RadiusResult], grid: list[float], *, tie_chain: 
                   step: float, band_fraction: float, bw2_fraction: float, bw3_top_n: int,
                   redundancy_rho: float,
                   admissibility_dominates_fraction: float = 0.50,
-                  exclude_degenerate_objectives: bool = True) -> RadiusSelection:
+                  exclude_degenerate_objectives: bool = True,
+                  near_tie_major_rel: float = 0.01) -> RadiusSelection:
     """Run the frozen II.6 selection and its v2 §4 diagnostics over the scanned grid."""
     candidates = build_candidates(results)
     result = select(candidates, OBJECTIVE_NAMES, tie_chain, w_k=w_k, metric=metric,
                     near_tie_rel=near_tie_rel, near_tie_sep_steps=near_tie_sep_steps,
-                    step=step)
+                    step=step, near_tie_major_rel=near_tie_major_rel)
 
     # --- v2 §4: degenerate objectives are non-informative -----------------------
     degenerate = list(result.degenerate_objectives)
@@ -258,6 +259,7 @@ def decision_payload(sel: RadiusSelection, results: list[RadiusResult],
                 # denominator). Named here in full to remove any ambiguity.
                 "n_labeled_in_hotspot_spheres": r.n_labeled_in,
                 "fold_enrichment_defined": r.fold_enrichment_defined,
+                "neighbor_stability_defined": r.neighbor_stability_defined,
                 "bh_boundary_p": r.bh_boundary_p,
                 "primary_null": r.extra["primary_null"],
                 "smallest_p_emp_in_family": r.extra["smallest_p_emp_in_family"],

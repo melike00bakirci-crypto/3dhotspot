@@ -91,21 +91,18 @@ def test_a_3d_hotspot_draws_from_several_sequence_segments(cases):
 
 
 @pytest.mark.parametrize("name", CASE_NAMES)
-def test_max_mst_edge_keeps_the_footprint_domain_non_empty(cases, name):
-    """METHOD_SPEC II.9: rho_max = 1.25 * (max MST edge / 2) must clear rho_min = 3.0.
+def test_protein_diameter_keeps_the_footprint_domain_non_empty(cases, name):
+    """DECISION-FOOTPRINT-DOMAIN-0001: rho_max = min(0.25 * D_max, 25.0) > 5.0.
 
-    A cluster of sequence-adjacent residues has every MST edge at 3.8 A, giving
-    rho_max = 2.375 and an empty domain, so Stage C terminates before it can
-    exercise anything. This is the fixture-side precondition for that not to
-    happen.
+    This test previously guarded the MST-derived bound: a cluster of
+    sequence-adjacent residues has every MST edge at 3.8 A, which gave
+    rho_max = 2.375 and an empty domain. That term no longer caps rho_max, so the
+    fixtures no longer need a contrived spread — the only remaining way to empty
+    the domain is a protein too small to host a 5 A footprint.
     """
     expected = cases[name].expected
-    max_edge = expected["max_mst_edge_plp_A"]
-    assert max_edge > MIN_MST_EDGE_FOR_FOOTPRINT_A, name
-
-    rho_all = max_edge / 2.0
-    rho_max = min(1.25 * rho_all, 0.25 * expected["D_max_A"], 20.0)
-    assert rho_max > 3.0, f"{name}: rho_min 3.0 would exceed rho_max {rho_max:.3f}"
+    rho_max = min(0.25 * expected["D_max_A"], 25.0)
+    assert rho_max > 5.0, f"{name}: rho_min 5.0 would exceed rho_max {rho_max:.3f}"
 
 
 def test_helix_cores_pack_in_the_real_ca_contact_range(clustered):
