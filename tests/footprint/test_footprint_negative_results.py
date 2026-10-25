@@ -39,6 +39,19 @@ def test_an_empty_evidence_set_terminates_the_chain_honestly(tmp_path):
     handoff_03, handoff_04 = run_stage_cd(ctx, upstream=upstream)
 
     assert handoff_03.negative_result["condition"] == NEGATIVE
+
+    # [DECISION-REPORTING-CONTEXT-0001] The flag the orchestrator's declared-negative
+    # hook keys on. Stage C does not raise to the orchestrator — it records the
+    # negative, writes NOT_RUN for 08/09 and returns — so without this flag the hook
+    # skips the run, Stage E is invoked, blocks on the absent footprint_residues.tsv,
+    # and a legitimate scientific negative is reported BLOCKED/TECHNICAL_FAILURE with
+    # negative_result: null. Found live in the v3 batch: CACNA1S and CASQ2 both ended
+    # 07/08 = COMPLETED_NEGATIVE and came back BLOCKED. That the hook then honours the
+    # flag is covered by
+    # test_end_to_end.py::test_unanalysable_cohort_is_a_negative_not_a_technical_failure.
+    assert handoff_03.negative_result["settled_negative"] is True, (
+        "a Stage C negative is SETTLED; without the flag the orchestrator reports it "
+        "as a technical failure")
     assert handoff_03.payload["footprint_radius"] is None
     assert handoff_03.payload["hotspot_radius"] == 8.0      # passthrough survives
     assert handoff_03.qc_status != "FAIL", "a negative is not a QC failure"

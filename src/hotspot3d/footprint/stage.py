@@ -306,7 +306,17 @@ def _finish_negative(ctx: RunContext, dir_07: Path, dir_08: Path,
                      up: UpstreamInputs, params: FootprintParams,
                      neg: NegativeResult, started: str, t0: float) -> Handoff:
     """A valid, complete, terminating scientific negative (P4)."""
-    detail = {"condition": neg.condition, "detail": neg.detail, **neg.context}
+    # [DECISION-REPORTING-CONTEXT-0001] The orchestrator's declared-negative hook keys
+    # on this flag. Stage C does not raise NegativeResult to the orchestrator — it
+    # records the negative, writes NOT_RUN for 08/09 and returns — so without the flag
+    # the hook skips the run, Stage E is invoked, blocks on the absent
+    # footprint_residues.tsv, and the run is typed BLOCKED/TECHNICAL_FAILURE with
+    # negative_result: null. Found live in the v3 batch: CACNA1S and CASQ2 both ended
+    # 07/08 = COMPLETED_NEGATIVE and then came back BLOCKED. Third instance of one
+    # seam — Stage B always set it, Stage A was fixed earlier in this decision, and
+    # Stage C is this.
+    detail = {"condition": neg.condition, "detail": neg.detail,
+              "settled_negative": True, **neg.context}
     if not (dir_07 / "footprint_domain.json").is_file():
         write_json(dir_07 / "footprint_domain.json",
                    {"negative_result": detail,
