@@ -267,6 +267,8 @@ GENE_SUMMARY_COLUMNS = [
     "perm_evidence_z", "fold_enrichment", "neighbor_stability", "distance_to_ideal_hot",
     "n_pareto_hot", "permutation_count", "permutation_resolution_limited",
     "b_recommended", "fdr_method", "fdr_q", "n_significant_centers",
+    # [DECISION-REPORTING-CONTEXT-0001] adjacent to the count, by design
+    "hotspot_coverage_at_r_hot", "hotspot_fold_enrichment_at_r_hot",
     "n_hotspot_regions", "n_centers_without_variant", "r_fp", "footprint_volume_A3",
     "footprint_surface_A2", "footprint_n_residues", "footprint_coverage",
     "footprint_n_components", "distance_to_ideal_fp", "n_perturbations_possible",

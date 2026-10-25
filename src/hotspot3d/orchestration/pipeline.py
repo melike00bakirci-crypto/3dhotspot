@@ -597,6 +597,14 @@ def _metrics(ctx: RunContext, handoffs: dict[str, Handoff], *, n_major: int,
         "fdr_q": entry(g(h2, "q"), "", "06_FINAL_HOTSPOTS"),
         "n_significant_centers": entry(g(h2, "n_significant_centers"), "centers",
                                        "06_FINAL_HOTSPOTS"),
+        # [DECISION-REPORTING-CONTEXT-0001] Immediately after the count, never
+        # elsewhere: how much of the structure those spheres cover and whether they
+        # are enriched for P/LP at all. A count of 334 means something different at
+        # coverage 0.09 than at 0.87, and the batch has genes at both.
+        "hotspot_coverage_at_r_hot": entry(g(h2, "coverage_fraction_at_r_hot"),
+                                           "fraction", "05_HOTSPOT_RADIUS"),
+        "hotspot_fold_enrichment_at_r_hot": entry(g(h2, "fold_enrichment_at_r_hot"),
+                                                  "", "05_HOTSPOT_RADIUS"),
         "n_hotspot_regions": entry(g(h2, "n_hotspot_regions"), "regions", "06_FINAL_HOTSPOTS"),
         "n_centers_without_variant": entry(g(h2, "n_centers_without_variant"), "centers",
                                            "06_FINAL_HOTSPOTS"),

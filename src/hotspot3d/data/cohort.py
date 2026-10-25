@@ -167,12 +167,15 @@ class RecordEval:
 
 def evaluate_records(records: Sequence[ClinVarRecord], *, policy: SignificancePolicy,
                      canonical_sequence: str, mane_transcript: str,
+                     mane_refseq_nucleotide: str | None = None,
                      require_ref_aa_match: bool = True) -> list[RecordEval]:
     """Evaluate every retrieved record against the frozen inclusion policy.
 
     Order of judgement (METHOD_SPEC II.13):
       1. protein HGVS must parse to a missense substitution;
-      2. the record must sit on the MANE Select transcript, or be remappable —
+      2. the record must sit on the MANE Select transcript, named by EITHER its
+         Ensembl or its RefSeq accession (DECISION-MANE-MATCH-0001), or be
+         remappable —
          remapping is permitted **only** when protein position and reference AA
          are both consistent with the UniProt canonical sequence;
       3. the reference AA must match the canonical sequence;
@@ -184,7 +187,11 @@ def evaluate_records(records: Sequence[ClinVarRecord], *, policy: SignificancePo
 
     for rec in records:
         call = policy.classify(rec.clinical_significance)
-        on_mane = transcript_matches(rec.transcript, mane_transcript)
+        # [DECISION-MANE-MATCH-0001] Either half of the MANE pair counts. Passing only
+        # `mane_transcript` (an Ensembl accession) against ClinVar's RefSeq accession
+        # made this false for every record ever evaluated.
+        on_mane = transcript_matches(rec.transcript, mane_transcript,
+                                     mane_refseq_nucleotide)
         position = rec.residue_index
         aa_ref_uniprot = (canonical_sequence[position - 1]
                           if position is not None and 1 <= position <= length else None)

@@ -263,8 +263,16 @@ def raw_tsv_text(rows: Sequence[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def transcript_matches(record_transcript: str | None, mane_transcript: str | None) -> bool:
-    """Accession comparison ignoring version (versions are recorded, not compared)."""
+def transcript_matches(record_transcript: str | None, *accepted: str | None) -> bool:
+    """Accession comparison ignoring version (versions are recorded, not compared).
+
+    [DECISION-MANE-MATCH-0001] Variadic because MANE names one transcript with TWO
+    accessions — an Ensembl `ENST...` and a RefSeq `NM_...` — and ClinVar names its
+    records by the RefSeq one while UniProt's MANE-Select xref `id` is the Ensembl one.
+    Comparing against a single accession made this function unable to return true for
+    any real record. A record is on the MANE transcript when it cites either half.
+    """
     left = strip_version(record_transcript)
-    right = strip_version(mane_transcript)
-    return bool(left) and bool(right) and left == right
+    if not left:
+        return False
+    return any(left == strip_version(a) for a in accepted if a)

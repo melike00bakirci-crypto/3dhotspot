@@ -327,6 +327,17 @@ def test_empty_class_blocks_the_handoff_but_keeps_the_evidence(cases, run, dropp
     assert handoff.negative_result["outcome_type"] == "SCIENTIFIC_NEGATIVE"
     assert handoff.negative_result["nothing_was_tested"] is True
 
+    # [DECISION-REPORTING-CONTEXT-0001] The flag the orchestrator's declared-negative
+    # hook keys on. Stage A does not raise NegativeResult — it records the negative and
+    # returns with qc_status=FAIL — so without this flag the hook skips the run, Stage B
+    # refuses on the failing handoff with a BlockedError, and `error` outranks `negative`
+    # in _finalize: the run is then typed BLOCKED/TECHNICAL_FAILURE. That is how WT1
+    # (cohort N=1, N_P=0, N_B=1) was filed as a pipeline fault instead of a statement
+    # about ClinVar's content.
+    assert handoff.negative_result["settled_negative"] is True, (
+        "an unanalysable cohort is a SETTLED negative; without the flag the "
+        "orchestrator reports it as a technical failure")
+
     warnings = read_tsv(ctx.full_results / "02_CLINVAR" / "warnings_02_clinvar.tsv")
     blocking = {w["warning_code"] for w in warnings if w["severity"] == "BLOCKING"}
     assert "INSUFFICIENT_CLASSIFIED_RESIDUES" in blocking, (
@@ -467,12 +478,25 @@ def test_uniprot_entry_parsing_and_mane_selection():
         "primaryAccession": "P15056", "uniProtkbId": "BRAF_HUMAN",
         "entryAudit": {"entryVersion": "245"},
         "sequence": {"value": "MAALSGGGGG"},
-        "uniProtKBCrossReferences": [{"database": "MANE-Select", "id": "NM_004333.6"}],
+        # [DECISION-MANE-MATCH-0001] The shape UniProt really serves: the MANE-Select
+        # xref `id` is an ENSEMBL accession and the RefSeq half is a property. The old
+        # fixture put "NM_004333.6" in `id`, which UniProt never does — and that is
+        # precisely why the suite stayed green while on_mane_transcript was FALSE for
+        # every record in every production run.
+        "uniProtKBCrossReferences": [
+            {"database": "MANE-Select", "id": "ENST00000646891.2",
+             "properties": [{"key": "ProteinId", "value": "ENSP00000493543.1"},
+                            {"key": "RefSeqNucleotideId", "value": "NM_004333.6"},
+                            {"key": "RefSeqProteinId", "value": "NP_004324.2"}]},
+            {"database": "RefSeq", "id": "NP_004324.2",
+             "properties": [{"key": "NucleotideSequenceId", "value": "NM_004333.6"}]},
+        ],
         "proteinDescription": {"recommendedName": {"fullName": {"value": "BRAF kinase"}}},
     }
     resolution = UniProtClient.parse_entry(entry, "BRAF")
     assert isinstance(resolution, GeneResolution)
-    assert resolution.mane_transcript == "NM_004333.6"
+    assert resolution.mane_transcript == "ENST00000646891.2"
+    assert resolution.mane_refseq_nucleotide == "NM_004333.6"
     assert resolution.mane_fallback_used is False
     assert resolution.aa_at(2) == "A"
     assert resolution.aa_at(0) is None and resolution.aa_at(999) is None

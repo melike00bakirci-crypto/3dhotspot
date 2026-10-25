@@ -315,3 +315,52 @@ def test_no_real_data_was_downloaded(tmp_path, config):
     meta = json.loads((root / "FULL_RESULTS" / "12_REPRODUCIBILITY" /
                        "run_metadata.json").read_text())
     assert meta["synthetic_input_mode"] is True
+
+# --------------------------------------------------------------------------- #
+# the sibling misreport: a SETTLED NEGATIVE typed as a technical failure       #
+# --------------------------------------------------------------------------- #
+
+@needs_impl
+def test_unanalysable_cohort_is_a_negative_not_a_technical_failure(tmp_path, config):
+    """[DECISION-REPORTING-CONTEXT-0001] The same seam as UNDERPOWERED, one stage up.
+
+    Stage A, on a cohort with an empty binary class, does NOT raise: it records
+    BLOCKED/SCIENTIFIC_NEGATIVE in its own stage_status, puts a `negative_result` on
+    handoff_01, sets `qc_status = FAIL` and returns — its own interpretation text says
+    "hotspot-statistics must NOT run". The orchestrator has a hook for exactly that
+    route ("A stage may DECLARE a settled scientific negative in its handoff and return
+    normally"), but the hook keys on `negative_result["settled_negative"]`, and only
+    Stage B was setting it. So the hook skipped Stage A's case, the run reached Stage B,
+    `Handoff.verify()` raised the generic "upstream reports qc_status=FAIL", and because
+    `error` outranks `negative` in `_finalize` the run came out
+    BLOCKED / TECHNICAL_FAILURE with `negative_result: null`.
+
+    WT1 is the real case: cohort N=1, N_P=0, N_B=1 — a statement about ClinVar's
+    content, filed as a pipeline fault. The existing invariant in
+    `test_end_to_end.py` ("a scientific negative is never reported as a technical
+    failure") is guarded by `if result.negative_result is not None`, which is exactly
+    what this defect nulls out, so it could not catch this.
+    """
+    from tests.fixtures.synthetic_annotation import MockAnnotationSource
+    from tests.fixtures.synthetic_clinvar import make_synthetic_case
+    from hotspot3d.orchestration.pipeline import SourceBundle, run_pipeline
+
+    fixture = make_synthetic_case("sparse").without_class("BLB")
+    sources = SourceBundle(variant_source=fixture.source,
+                           structure_source=fixture.source,
+                           annotation_source=MockAnnotationSource())
+    result = run_pipeline(gene="SYNTH", config=config,
+                          results_root=tmp_path / "results", sources=sources,
+                          synthetic=True, run_id="20250101T000000Z_test_test")
+
+    assert result.run_status is RunStatus.COMPLETED_NEGATIVE
+    assert result.outcome_type is OutcomeType.SCIENTIFIC_NEGATIVE
+    assert result.negative_result is not None, (
+        "the negative must reach the run; nulling it is what hid the defect")
+    assert result.negative_result["condition"] == "INSUFFICIENT_CLASSIFIED_RESIDUES"
+    assert result.exit_code == 0, "a scientific negative must not exit non-zero"
+
+    # and the stage that declared it still says the same thing
+    status = json.loads((result.run_root / "FULL_RESULTS" / "02_CLINVAR"
+                         / "stage_status.json").read_text())
+    assert status["outcome_type"] == "SCIENTIFIC_NEGATIVE"

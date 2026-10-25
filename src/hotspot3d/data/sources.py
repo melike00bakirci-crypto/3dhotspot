@@ -154,6 +154,11 @@ class GeneResolution:
     canonical_isoform: str
     sequence: str
     mane_transcript: str
+    # [DECISION-MANE-MATCH-0001] The RefSeq half of the MANE pair, read from the same
+    # MANE-Select cross-reference that supplies `mane_transcript`. ClinVar names its
+    # records by RefSeq accession, so without this the eligibility comparison was
+    # ENST-against-NM_ and could never be true.
+    mane_refseq_nucleotide: str | None = None
     mane_source: str = "MANE_SELECT"
     mane_fallback_used: bool = False
     organism_id: int = 9606
@@ -634,6 +639,22 @@ class ClinVarClient:
             "http_status": self._transfer.get("http_status", "NA"),
             "transfer": dict(self._transfer),
         }
+def _xref_property(xref: dict, key: str) -> str | None:
+    """One named property of a UniProtKB cross-reference, or None.
+
+    [DECISION-MANE-MATCH-0001] UniProt carries the MANE pairing in the properties of
+    the MANE-Select cross-reference (`RefSeqNucleotideId`), and the RefSeq nucleotide
+    accession in the properties of a RefSeq cross-reference
+    (`NucleotideSequenceId`) — never in the `id` field, which holds an Ensembl
+    accession and a protein accession respectively.
+    """
+    for prop in (xref.get("properties") or []):
+        if str(prop.get("key", "")) == key:
+            value = str(prop.get("value", "")).strip()
+            return value or None
+    return None
+
+
 
 
 # --- UniProt client ---------------------------------------------------------
@@ -715,12 +736,29 @@ class UniProtClient:
 
         if mane:
             transcript = mane[0].get("id") or "NA"
+            # [DECISION-MANE-MATCH-0001] MANE *is* the ENST/NM_ pairing, and UniProt
+            # ships both halves in this one cross-reference, so the RefSeq accession
+            # comes from the definition rather than from a lookup that could disagree
+            # with it.
+            refseq_nt = _xref_property(mane[0], "RefSeqNucleotideId")
             source, fallback = "MANE_SELECT", False
         elif refseq:
-            # METHOD_SPEC II.13 fallback: the RefSeq transcript matching the
-            # canonical sequence with the longest CDS, recorded explicitly.
-            transcript = sorted(x.get("id") or "" for x in refseq)[-1]
-            source, fallback = "longest_cds_matching_uniprot_canonical", True
+            # [DECISION-MANE-MATCH-0001] A RefSeq cross-reference's `id` is the PROTEIN
+            # accession (NP_...); the nucleotide accession lives in its
+            # NucleotideSequenceId property. Reading `id` here assigned an NP_ to
+            # `transcript`, which can no more match ClinVar's NM_ than the Ensembl id
+            # could. The old label claimed "longest CDS matching the canonical
+            # sequence"; CDS length is not in this payload and was never consulted —
+            # the code sorts accessions and takes the last, so the label now says so.
+            by_nt = sorted(
+                nt for nt in (_xref_property(x, "NucleotideSequenceId") for x in refseq)
+                if nt)
+            transcript = by_nt[-1] if by_nt else (
+                sorted(x.get("id") or "" for x in refseq)[-1])
+            refseq_nt = transcript if by_nt else None
+            source = ("highest_sorted_refseq_nucleotide_accession" if by_nt
+                      else "highest_sorted_refseq_protein_accession_NO_NUCLEOTIDE_ID")
+            fallback = True
         else:
             raise EscalationRequired(
                 ambiguity=(f"UniProt entry {accession} for {gene} names neither a MANE "
@@ -740,7 +778,8 @@ class UniProtClient:
         return GeneResolution(
             gene=gene, uniprot_acc=accession, uniprot_entry_version=version,
             canonical_isoform=f"{accession}-1", sequence=sequence,
-            mane_transcript=transcript, mane_source=source, mane_fallback_used=fallback,
+            mane_transcript=transcript, mane_refseq_nucleotide=refseq_nt,
+            mane_source=source, mane_fallback_used=fallback,
             entry_name=entry.get("uniProtkbId") or "NA", protein_name=protein,
             oligomeric_state=oligomer["oligomeric_state"],
             oligomeric_state_evidence=oligomer["subunit_text"],

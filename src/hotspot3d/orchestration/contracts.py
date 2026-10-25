@@ -91,7 +91,14 @@ def load_handoff(ctx: RunContext, name: str) -> Handoff:
 # --- required handoff payload keys, asserted by the Lead integration audit ---
 HANDOFF_REQUIRED_KEYS: dict[str, list[str]] = {
     "handoff_01": [
-        "gene", "uniprot_acc", "mane_transcript", "clinvar_release",
+        # [DECISION-MANE-MATCH-0001] Both halves of the MANE pair are required, so a
+        # consumer can audit WHICH accession the eligibility test compared against
+        # instead of assuming. One builder produces handoff_01 on every path —
+        # including the negative and blocked ones — so this is safe to require; a
+        # dormant-fallback entry with no nucleotide id records None, which satisfies
+        # the key-presence contract honestly.
+        "gene", "uniprot_acc", "mane_transcript", "mane_refseq_nucleotide",
+        "clinvar_release",
         "alphafold_model_version", "M", "N", "N_P", "N_B", "n_conflict",
         "stage_b_permitted_columns", "forbidden_downstream",
     ],

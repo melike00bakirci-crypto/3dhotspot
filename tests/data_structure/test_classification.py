@@ -267,6 +267,49 @@ def test_transcript_comparison_ignores_version_only():
     assert transcript_matches(None, "NM_004333.6") is False
 
 
+def test_a_clinvar_refseq_record_matches_the_ensembl_named_mane_transcript():
+    """[DECISION-MANE-MATCH-0001] The regression guard for a filter that never fired.
+
+    UniProt's MANE-Select xref names the transcript with an Ensembl accession; ClinVar
+    names its records with the RefSeq one. Comparing a record against the Ensembl
+    accession ALONE is false for every real record, which is how `on_mane_transcript`
+    came out FALSE in 1780/1780 ABCD1, 15331/15331 BRCA1 and 4999/4999 SCN5A records
+    without a single test failing. Both halves of the pair must be accepted, and a
+    record on some OTHER transcript must still be rejected.
+    """
+    ensembl, refseq = "ENST00000218104.6", "NM_000033.4"
+
+    assert transcript_matches(refseq, ensembl) is False, (
+        "this is the production bug: the RefSeq record against the Ensembl id alone")
+    assert transcript_matches(refseq, ensembl, refseq) is True
+    assert transcript_matches(ensembl, ensembl, refseq) is True
+    assert transcript_matches(refseq, ensembl, "NM_000033.9") is True, "version ignored"
+    assert transcript_matches("NM_001099404.1", ensembl, refseq) is False, (
+        "a different RefSeq transcript is NOT on the MANE transcript")
+
+
+def test_on_mane_is_true_for_a_record_naming_the_mane_refseq_accession(policy):
+    """End to end through evaluate_records, not just the comparison helper."""
+    sequence = "MVAKLDEGGH"
+    row = {"VariationID": "1", "GeneSymbol": "SYNGENE",
+           "Name": "NM_900001.4(SYNGENE):c.7A>G (p.Ala3Gly)",
+           "ClinicalSignificance": "Pathogenic",
+           "ReviewStatus": "criteria provided, single submitter"}
+    records = normalize_records([row], gene="SYNGENE")
+
+    paired = evaluate_records(records, policy=policy, canonical_sequence=sequence,
+                              mane_transcript="ENST00000900001.1",
+                              mane_refseq_nucleotide="NM_900001.4")[0]
+    assert paired.on_mane_transcript is True
+    assert paired.eligible_primary is True
+    assert paired.remapped_to_canonical is False, "it IS on MANE; nothing was remapped"
+
+    # the pre-fix behaviour, kept as the contrast: no RefSeq half, no match
+    unpaired = evaluate_records(records, policy=policy, canonical_sequence=sequence,
+                                mane_transcript="ENST00000900001.1")[0]
+    assert unpaired.on_mane_transcript is False
+
+
 # --- record evaluation ------------------------------------------------------
 
 def _evaluate(rows, policy, sequence, transcript="NM_900001.4"):

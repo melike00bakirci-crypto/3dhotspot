@@ -1833,6 +1833,22 @@ class StageB:
             "r_hot_runner_up_margin_rel": _runner_up_margin(sel.result),
             "loo_sparse_proportion": loo_at_r.prop_sparse,
             "loo_zero_neighbour_proportion": loo_at_r.prop_zero_neighbour,
+            # [DECISION-REPORTING-CONTEXT-0001] The centre count never travels alone.
+            # Measured on the ACMG SF batch: 14 of the 51 genes that produced centres
+            # did so from spheres covering more than half the structure, with fold
+            # enrichment ~1.0 (GAA 334 centres at coverage 0.872, enrichment 1.016).
+            # Every one of those 14 carries a MAJOR EXCESSIVE_STRUCTURAL_COVERAGE in
+            # its warnings file, so the pipeline detects the condition perfectly — but
+            # the headline number was handed downstream without it, and a reader of
+            # handoff_02 or run_summary had to open a different file to learn that the
+            # "hotspot" is most of the protein. These two fields travel with the count
+            # from here on. They decide nothing; r_hot and significance are untouched.
+            "coverage_fraction_at_r_hot": next(
+                r.coverage_fraction for r in self.results if r.radius_A == self.r_hot),
+            "fold_enrichment_at_r_hot": next(
+                r.fold_enrichment for r in self.results if r.radius_A == self.r_hot),
+            "fold_enrichment_defined_at_r_hot": next(
+                r.fold_enrichment_defined for r in self.results if r.radius_A == self.r_hot),
             "perm_evidence_zg_at_r_hot": next(
                 r.perm.zg for r in self.results if r.radius_A == self.r_hot),
             "perm_evidence_zg_direction": ZG_DIRECTION_NOTE,

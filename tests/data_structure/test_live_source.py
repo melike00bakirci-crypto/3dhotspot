@@ -60,7 +60,12 @@ UNIPROT_JSON = {
         "uniProtkbId": "TEST_HUMAN",
         "entryAudit": {"entryVersion": "7", "lastSequenceUpdateDate": "2024-01-17"},
         "sequence": {"value": "MKVG"},
-        "uniProtKBCrossReferences": [{"database": "MANE-Select", "id": "NM_000000.1"}],
+        # [DECISION-MANE-MATCH-0001] MANE-Select `id` is an Ensembl accession; the
+        # RefSeq accession ClinVar names is a property of the same xref.
+        "uniProtKBCrossReferences": [
+            {"database": "MANE-Select", "id": "ENST00000000001.1",
+             "properties": [{"key": "RefSeqNucleotideId", "value": "NM_000000.1"}]},
+        ],
         "proteinDescription": {"recommendedName": {"fullName": {"value": "Test protein"}}},
     }]
 }
@@ -274,7 +279,9 @@ def test_allow_network_true_dispatches_the_uniprot_request(dispatched):
     assert dispatched[0]["params"]["query"] == (
         f"gene_exact:{GENE} AND organism_id:9606 AND reviewed:true")
     assert isinstance(resolution, GeneResolution)
-    assert (resolution.uniprot_acc, resolution.mane_transcript) == (ACC, "NM_000000.1")
+    assert (resolution.uniprot_acc, resolution.mane_transcript) == (
+        ACC, "ENST00000000001.1")
+    assert resolution.mane_refseq_nucleotide == "NM_000000.1"
     assert_release_metadata(source.sequence_metadata(), "UniProt")
     assert source.raw_payload("uniprot").startswith(f">sp|{ACC}|".encode())
 

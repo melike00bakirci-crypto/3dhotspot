@@ -401,6 +401,7 @@ def _execute(run: _Run, source: Any | None) -> Handoff:
     evals = evaluate_records(
         records, policy=policy, canonical_sequence=resolution.sequence,
         mane_transcript=resolution.mane_transcript,
+        mane_refseq_nucleotide=resolution.mane_refseq_nucleotide,
         require_ref_aa_match=bool(cfg.get("transcript.require_ref_aa_match")),
     )
     residue_rows = collapse_to_residues(evals, canonical_sequence=resolution.sequence)
@@ -461,6 +462,19 @@ def _execute(run: _Run, source: Any | None) -> Handoff:
             "outcome_type": OutcomeType.SCIENTIFIC_NEGATIVE.value,
             "negative_kind": "input_cannot_support_the_analysis",
             "nothing_was_tested": True,
+            # [DECISION-REPORTING-CONTEXT-0001] The orchestrator's declared-negative
+            # hook keys on exactly this flag (orchestration/pipeline.py: "A stage may
+            # DECLARE a settled scientific negative in its handoff and return normally").
+            # Stage A takes that route — it does not raise; it records
+            # BLOCKED/SCIENTIFIC_NEGATIVE, sets qc_status=FAIL and returns — but only
+            # Stage B was setting the flag, so the hook skipped this case. The run then
+            # reached Stage B, whose Handoff.verify() raised the generic "upstream
+            # reports qc_status=FAIL", and `error` outranks `negative` in _finalize, so
+            # the run was typed BLOCKED/TECHNICAL_FAILURE. WT1 is the case: cohort
+            # N=1, N_P=0, N_B=1 — a statement about ClinVar's content, filed as a crash.
+            # This is a settled negative by the same definition Stage B uses: the chain
+            # ends here, for a scientific reason, and no downstream work is licensed.
+            "settled_negative": True,
             "interpretation": (
                 "The evidence base for this gene cannot support the analysis: a binary "
                 "class is empty or |L| < 2, so no spatial test was ever run. This is "
@@ -775,6 +789,10 @@ def _write_clinvar_outputs(run: _Run, evals, residue_rows, star_rows, counts,
                  "config_sha256": cfg.sha256,
                  "uniprot_acc": resolution.uniprot_acc,
                  "mane_transcript": resolution.mane_transcript,
+                 # [DECISION-MANE-MATCH-0001] Recorded so a reader can see WHICH
+                 # accession the eligibility test compared against. ClinVar names
+                 # records by the RefSeq half; UniProt's xref id is the Ensembl half.
+                 "mane_refseq_nucleotide": resolution.mane_refseq_nucleotide,
                  "mane_source": resolution.mane_source,
                  "mane_fallback_used": resolution.mane_fallback_used,
                  "clinvar_release": clinvar_meta.get("release_date", "NA"),
@@ -1163,6 +1181,9 @@ def _write_handoff(run: _Run, resolution, clinvar_meta, model, counts, mapping,
             "uniprot_acc": resolution.uniprot_acc,
             "uniprot_entry_version": resolution.uniprot_entry_version,
             "mane_transcript": resolution.mane_transcript,
+            # [DECISION-MANE-MATCH-0001] The accession ClinVar actually names, so a
+            # downstream consumer can audit the eligibility test rather than assume it.
+            "mane_refseq_nucleotide": resolution.mane_refseq_nucleotide,
             "mane_fallback_used": resolution.mane_fallback_used,
             "clinvar_release": clinvar_meta.get("release_date", "NA"),
             "alphafold_model_version": model.model_version,
