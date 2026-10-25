@@ -459,14 +459,22 @@ def _execute(
             q=float(cfg.get("fdr.q")),
         )
     else:
-        posthoc = gate_failure_record(evaluation, gate)
-        warnings.add(
-            "POSTHOC_GATE_FAILED",
-            evaluation.reason,
-            potential_consequence="No mechanism-specific spatial claim can be made.",
-            recommended_action="None. The gate is not lowered to obtain a result.",
-            affected_output="mechanism_spatial_posthoc.json",
-        )
+        posthoc = gate_failure_record(evaluation, gate,
+                                      mechanisms_not_run=mechanisms_not_run)
+        # [DECISION-STAGE-E-SCOPE-0001, extended] One fact, one warning. When the
+        # curated source was never queried, LITERATURE_MECHANISMS_NOT_RUN already
+        # states the cause and POSTHOC_GATE_FAILED is only its consequence — it fired
+        # on 49 of 49 completed runs in the ACMG SF v3.2 batch, exactly alongside the
+        # other, which is how a reader learns to ignore both. The gate's own record
+        # now carries NOT_EVALUABLE and names the upstream cause, so nothing is lost.
+        if not mechanisms_not_run:
+            warnings.add(
+                "POSTHOC_GATE_FAILED",
+                evaluation.reason,
+                potential_consequence="No mechanism-specific spatial claim can be made.",
+                recommended_action="None. The gate is not lowered to obtain a result.",
+                affected_output="mechanism_spatial_posthoc.json",
+            )
     writer.json("mechanism_spatial_posthoc.json", posthoc)
 
     # 10 — gaps. An empty gap file is itself suspicious and is justified in the

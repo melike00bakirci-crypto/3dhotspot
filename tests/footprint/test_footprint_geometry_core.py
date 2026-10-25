@@ -194,3 +194,57 @@ def test_every_center_voxel_is_a_seed_and_therefore_always_occupied():
     dist = distance_field(spec, points)
     idx = seed_indices(spec, points)
     assert np.all(dist[idx[:, 0], idx[:, 1], idx[:, 2]] == 0.0)
+
+
+# --- [DECISION-VOXEL-TIE-0001] voxel assignment is origin-equivariant -------
+
+def test_a_point_on_a_cell_boundary_lands_in_the_same_cell_under_any_origin():
+    """The PTPN11 case: `floor` was deciding ties by float accident.
+
+    `index_of` computes `floor((p - origin) / h)`. When a coordinate sits exactly on
+    a cell boundary the quotient is an integer in exact arithmetic, but in float64 it
+    can land a few ULP below — PTPN11's center 507 (y = -0.104) gave 54.0 under one
+    origin and 15.999999999999998 under another, one voxel apart. One seed moved, the
+    EDT reclassified a shell at the r_fp isosurface, and the reported volume changed
+    by 32 A^3 for a purely arithmetic reason.
+
+    The invariant: shifting the origin by an exact multiple of `h` must shift every
+    index by exactly that many cells and change nothing else.
+    """
+    from hotspot3d.footprint.grid import GridSpec
+
+    point = np.array([[-0.104, -0.104, -0.104]])
+    shifts = (0.0, 8.0, 19.0, 27.0, 100.0)      # all exact multiples of h = 0.5
+    base = GridSpec(origin=(-8.104, -8.104, -8.104), shape=(400, 400, 400), h=0.5,
+                    h_requested=0.5, fallback_applied=False)
+    base_idx = base.index_of(point)[0]
+
+    for shift in shifts:
+        spec = GridSpec(origin=tuple(o - shift for o in base.origin),
+                        shape=base.shape, h=base.h, h_requested=base.h_requested,
+                        fallback_applied=False)
+        moved = spec.index_of(point)[0]
+        expected = base_idx + int(round(shift / base.h))
+        assert list(moved) == list(expected), (
+            f"origin shifted by {shift} A ({shift / base.h:g} cells) moved the index "
+            f"to {list(moved)}, expected {list(expected)} — the same physical point "
+            f"changed cell")
+
+
+def test_the_tie_tolerance_cannot_move_a_genuine_sub_cell_offset():
+    """It absorbs float noise and nothing larger.
+
+    Coordinates arrive at 1e-3 A and the cell edge is 0.5 A, so the smallest real
+    distinction in index units is 2e-3 — five hundred thousand times the tolerance. A
+    point genuinely inside a cell must stay there.
+    """
+    from hotspot3d.footprint.grid import GridSpec
+
+    spec = GridSpec(origin=(0.0, 0.0, 0.0), shape=(100, 100, 100), h=0.5,
+                    h_requested=0.5, fallback_applied=False)
+    # 1e-3 A below a boundary: a real position, not noise. Must stay in the lower cell.
+    just_below = np.array([[7.999, 7.999, 7.999]])
+    assert list(spec.index_of(just_below)[0]) == [15, 15, 15]
+    # exactly on the boundary: the upper cell, deterministically
+    exactly_on = np.array([[8.0, 8.0, 8.0]])
+    assert list(spec.index_of(exactly_on)[0]) == [16, 16, 16]

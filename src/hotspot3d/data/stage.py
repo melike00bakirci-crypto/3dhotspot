@@ -267,7 +267,18 @@ def run_stage_a(ctx: RunContext, *, gene: str, source: Any | None = None) -> Han
         return _execute(run, source)
     except NegativeResult:
         raise
-    except (BlockedError, EscalationRequired) as exc:
+    except EscalationRequired as exc:
+        # [DECISION-REPORTING-CONTEXT-0001] An escalation is a Lead DECISION, not a
+        # fault, and the orchestrator already types the run NOT_APPLICABLE for it. This
+        # handler used to share a branch with BlockedError and stamp TECHNICAL_FAILURE
+        # into stage_status.json, so the stage contradicted its own run: BTD (AlphaFold
+        # and UniProt numbering off by -20) and GLA (two reviewed UniProt accessions)
+        # both read BLOCKED/TECHNICAL_FAILURE at the stage and PARTIAL/NOT_APPLICABLE at
+        # the run. `_mark_not_run` cannot correct it either — it skips a status file the
+        # stage has already written.
+        _write_terminal_status(run, Status.BLOCKED, OutcomeType.NOT_APPLICABLE, str(exc))
+        raise
+    except BlockedError as exc:
         _write_terminal_status(run, Status.BLOCKED, OutcomeType.TECHNICAL_FAILURE, str(exc))
         raise
     except Exception as exc:                                    # pragma: no cover
@@ -291,6 +302,12 @@ def _write_terminal_status(run: _Run, status: Status, outcome: OutcomeType,
                 n_outputs_created=len(run.created_names(stage)),
                 warnings=run.warning_counts(),
                 recommended_action=(
+                    "Stage A stopped before producing a usable cohort. A Lead "
+                    "DECISION is required — this is an ambiguity in the inputs, not a "
+                    "fault in the code. Choose among the options recorded in the "
+                    "escalation, then re-run under a new RUN_ID; no downstream stage "
+                    "may run against this directory."
+                    if outcome is OutcomeType.NOT_APPLICABLE else
                     "Stage A stopped before producing a usable cohort. Read this "
                     "reason, resolve it with the Lead, and re-run under a new RUN_ID; "
                     "no downstream stage may run against this directory."),
@@ -835,7 +852,24 @@ def _write_clinvar_outputs(run: _Run, evals, residue_rows, star_rows, counts,
                  },
                  "significance_class_counts": dict(sorted(sig_counts.items())),
                  "significance_policy": policy.as_dict(),
-                 "n_binary_records_matched_component_wise": len(inexact),
+                 # [DECISION-REPORTING-CONTEXT-0001] None, not 0, when the policy
+                 # makes the quantity unmeasurable. Under the frozen
+                 # `compound_significance_policy: whole_field`, `component_matching` is
+                 # False, so a compound label ("Pathogenic, risk factor") classifies as
+                 # OTHER and is never eligible — the code path that could make this
+                 # non-zero cannot execute. It read 0 in all 66 genes of the ACMG SF
+                 # v3.2 batch, which reads as "we checked and found none" rather than
+                 # "this policy cannot produce one". Same correction, and same reason,
+                 # as `mechanism_counts` zeros -> null in DECISION-STAGE-E-SCOPE-0001.
+                 "n_binary_records_matched_component_wise": (
+                     len(inexact) if policy.component_matching else None),
+                 "n_binary_records_matched_component_wise_note": (
+                     "NOT MEASURABLE under compound_significance_policy="
+                     f"{policy.compound_policy}: component matching is disabled, so no "
+                     "compound label can be admitted as binary."
+                     if not policy.component_matching else
+                     "records admitted as binary whose ClinicalSignificance matched "
+                     "component-wise rather than as a whole field"),
                  # [NEW — Workflow v2 §1] counterfactual cost of the frozen
                  # compound-significance policy — never a second inclusion path.
                  "compound_significance_policy_cost": compound_cost,

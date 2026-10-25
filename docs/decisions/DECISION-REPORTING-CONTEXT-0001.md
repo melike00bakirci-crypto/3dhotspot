@@ -88,6 +88,68 @@ Not placed in `test_underpowered_terminal_state.py`, where the sibling defect is
 documented: that whole module is currently `pytest.mark.skip` pending an UNDERPOWERED
 fixture reachable at the frozen `B = 100,000`, so a test added there would never run.
 
+## Addendum — four cleanups, same class
+
+None changes a number, a decision or a terminal state of any gene that produced a
+result. All four were found in the Stage A->E assessment of the `results_v2/` batch.
+
+**1. `src/clinspot3d/` deleted.** 1.3 MB of orphaned bytecode from a previous package
+name: 100 `.pyc` files, zero `.py`, untracked and invisible to `git status` because
+`*.pyc` is ignored, last written 2026-09-01. It imported as a namespace package while
+every submodule raised `ModuleNotFoundError`, so it could not shadow `hotspot3d` and
+was outside `code_version`'s root — harmless, but a trap for any future
+`import clinspot3d`. `import clinspot3d` now fails cleanly. The stale
+`_editable_impl_clinspot3d.pth` remains in the venv; it points at `src`, which still
+exists for `hotspot3d`, so it is inert, and `.venv` is machine-local rather than repo
+state.
+
+**2. Stage E reported one fact as two warnings.** `LITERATURE_MECHANISMS_NOT_RUN` and
+`POSTHOC_GATE_FAILED` each fired on **49 of 49** completed runs, and the second is only
+the first's consequence: with the curated source out of scope, every mechanism label
+defaults to `Not_Experimentally_Characterized`, so no variant reaches any evidence level
+and the gate has nothing to weigh.
+
+Worse than redundant, the record was wrong about its own cause. `gate_failure_record`
+wrote `outcome_type: SCIENTIFIC_NEGATIVE` with the detail "it says the literature does
+not yet support the test" — but the literature was never searched. That is exactly the
+misreport `DECISION-STAGE-E-SCOPE-0001` fixed one function over, when all-zero
+`mechanism_counts` read as "we curated and found nothing". That record's own text
+anticipates this case: it states the post hoc gate "therefore cannot pass". **A gate that
+cannot pass has not failed; it was not evaluable.**
+
+So `gate_failure_record` now takes `mechanisms_not_run` and, when set, writes
+`status: NOT_EVALUABLE`, `outcome_type: NOT_APPLICABLE`, condition
+`MECHANISM_SOURCE_NOT_QUERIED` and `upstream_cause: LITERATURE_MECHANISMS_NOT_RUN`. The
+second warning is suppressed on that path only — nothing is lost, because the record
+names the cause and `LITERATURE_MECHANISMS_NOT_RUN` still fires. When a curated source
+is eventually supplied, the genuine-negative branch is untouched and reports as before.
+
+**3. An escalation was stamped `TECHNICAL_FAILURE` by the stage that raised it.** Stage A
+caught `BlockedError` and `EscalationRequired` in one `except` and wrote
+`BLOCKED / TECHNICAL_FAILURE` for both. The orchestrator types an escalated run
+`PARTIAL / NOT_APPLICABLE`, so the stage contradicted its own run: **BTD** (AlphaFold and
+UniProt numbering disagree by -20 positions, alignment identity 1.0000 over 523 residues)
+and **GLA** (gene resolves to two reviewed UniProt accessions, Q9UHE5 and P06280) both
+read `BLOCKED/TECHNICAL_FAILURE` at the stage and `PARTIAL/NOT_APPLICABLE` at the run.
+`_mark_not_run` cannot correct it, because it skips a status file the stage has already
+written.
+
+The branches are now split: `EscalationRequired` writes `BLOCKED / NOT_APPLICABLE` and a
+`recommended_action` saying a Lead DECISION is required rather than "resolve it and
+re-run"; `BlockedError` is unchanged. An escalation is an ambiguity in the inputs, not a
+fault in the code, and the two must not be read the same way. This also corrects a claim
+made earlier in the assessment — that CYP27A1 and BTD/GLA showed "one condition typed two
+ways". They are different conditions; what was wrong was the label on one of them.
+
+**4. `n_binary_records_matched_component_wise` was zero by configuration, not by data.**
+It counts records admitted as binary whose significance matched component-wise. Under the
+frozen `compound_significance_policy: whole_field`, `component_matching` is False, so a
+compound label such as "Pathogenic, risk factor" classifies as `OTHER` and is never
+eligible — the path that could make the counter non-zero cannot execute. It read 0 in all
+66 genes, which reads as "we checked and found none". It is now `None` when the policy
+makes it unmeasurable, with a note naming the policy; the same correction, for the same
+reason, as zeros -> null in `DECISION-STAGE-E-SCOPE-0001`.
+
 ## Deliberately NOT done
 
 **`BH_BY_DISAGREEMENT` severity.** It fires as MAJOR whenever BH and BY reject different

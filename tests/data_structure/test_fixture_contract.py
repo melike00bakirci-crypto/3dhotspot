@@ -64,15 +64,21 @@ def test_case_source_satisfies_the_stage_a_provider_interface(name):
         assert metadata["source"] and metadata["release_date"] and metadata["query"]
 
 
-EIGHT_CASES = (
+#: [DECISION-UNDERPOWERED-FIXTURE-0001] `single_pathogenic_residue` is the ninth. It
+#: exists because `permutation_resolution` stopped being able to reach UNDERPOWERED once
+#: DECISION-B-DEFAULT-0001 raised B to 100,000 — the resolution floor recedes as B rises.
+#: The combinatorial floor does not, so N_P = 1 reaches the state at any B.
+REGISTERED_CASES = (
     "clustered", "no_cluster", "sparse", "conflict", "low_plddt",
     "no_significant_hotspot", "excessive_coverage", "permutation_resolution",
+    "single_pathogenic_residue",
 )
 
 
-def test_all_eight_cases_are_exposed():
-    assert CASE_NAMES == EIGHT_CASES
-    assert set(all_synthetic_cases()) == set(EIGHT_CASES)
+def test_every_registered_case_is_exposed():
+    """The registry and this list must not drift apart silently."""
+    assert CASE_NAMES == REGISTERED_CASES
+    assert set(all_synthetic_cases()) == set(REGISTERED_CASES)
 
 
 def test_the_required_cases_exist_with_their_advertised_properties():
@@ -85,6 +91,15 @@ def test_the_required_cases_exist_with_their_advertised_properties():
     assert built["conflict"].expected["n_conflict"] > 0
     assert built["low_plddt"].expected["has_low_confidence_tail"] is True
     assert built["low_plddt"].expected["n_low_confidence_residues"] > 20
+
+    # [DECISION-UNDERPOWERED-FIXTURE-0001] The degenerate cohort: exactly one
+    # pathogenic residue against a viable benign class. N_P = 1 is what makes the
+    # COMBINATORIAL floor binding, and that floor does not move with B — which is the
+    # whole reason this case exists rather than another resolution-floor fixture.
+    single = built["single_pathogenic_residue"]
+    assert single.expected["N_P"] == 1
+    assert single.expected["N_B"] >= 1, "the cohort must still be viable"
+    assert single.expected["N"] >= 2, "|L| >= 2 or Stage A blocks before Stage B"
 
 
 def test_every_case_declares_what_it_is_for():
@@ -110,8 +125,23 @@ def test_negative_branch_cases_declare_their_branch(name, branch):
     assert make_synthetic_case(name).expected["expected_negative_branch"] == branch
 
 
-def test_permutation_resolution_case_makes_the_floor_reachable():
-    """m must exceed q * (B + 1) or the k=1 BH threshold cannot sit below 1/(B+1)."""
+def test_permutation_resolution_case_declares_which_floor_it_reaches():
+    """The fixture's regime is a FACT about (m, q, B), not an assumption.
+
+    C1 — the permutation-resolution condition — can fire only when
+    ``q/m < 1/(B+1)``, i.e. ``m > q*(B+1)``. That is a property of the configured
+    B, so this test asserts the *relationship* and records the regime rather than
+    hard-coding one side of it.
+
+    At B = 10,000 this fixture (M = 620) cleared ``m > 500.05`` by design. Under
+    DECISION-B-DEFAULT-0001 (B = 100,000) the line moved to ``m > 5000.05``, which
+    620 does not clear: raising B improves resolution, so the resolution floor is no
+    longer reachable at this scale. That is not a defect in the fixture — it means
+    the production path to UNDERPOWERED is now the COMBINATORIAL floor, not the
+    resolution floor. Building a fixture that reaches the resolution floor at
+    production B (it would need m > 5000) is a scientific-design question owned by
+    `hotspot-statistics`; see the follow-up section of DECISION-B-DEFAULT-0001.
+    """
     from hotspot3d.utils.config import load_config
 
     config = load_config(REPO_ROOT / "config" / "pipeline.yaml")
@@ -120,9 +150,22 @@ def test_permutation_resolution_case_makes_the_floor_reachable():
 
     expected = make_synthetic_case("permutation_resolution").expected
     m = expected["M"]
-    assert m > q * (B + 1), "U_struct too small to drive the BH threshold below 1/(B+1)"
-    assert q / m < 1.0 / (B + 1)
+
+    # The two formulations of C1 are the same statement; they must never disagree.
+    assert (m > q * (B + 1)) == (q / m < 1.0 / (B + 1))
+
+    # The pinned-p condition is a property of the fixture itself and holds at any B.
     assert expected["N_P"] <= 6, "the pinned-p condition needs very few P/LP residues"
+
+    # Record the regime explicitly so a reader is never left guessing.
+    if B <= 10_000:
+        assert m > q * (B + 1), (
+            f"at B={B} this fixture is expected to reach the resolution floor")
+    else:
+        assert m <= q * (B + 1), (
+            f"at B={B} the resolution floor needs m > {q * (B + 1):.2f}; this fixture "
+            f"has m = {m}. UNDERPOWERED is reachable here only via the combinatorial "
+            f"floor.")
 
 
 def test_excessive_coverage_case_is_small_and_broadly_occupied():

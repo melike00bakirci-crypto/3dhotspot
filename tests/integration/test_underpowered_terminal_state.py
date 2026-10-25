@@ -80,17 +80,35 @@ pytestmark = [pytest.mark.integration, pytest.mark.slow]
 UNDERPOWERED_RUN_ID = "20250101T000000Z_seedE001_seedE002"
 
 
+#: **History of the fixture, because it took two attempts.** An early version reached
+#: UNDERPOWERED by overlaying `permutation.B_default` down to 200. That is invalid and
+#: `assert_frozen_methodology` correctly rejected it. The `permutation_resolution`
+#: fixture (M = 620) then supplied the state through the RESOLUTION floor, because at
+#: B = 10,000 its family size cleared q*(B+1) = 500.05. DECISION-B-DEFAULT-0001 raised B
+#: to 100,000 and removed that regime — the line moved to m > 5000.05, and raising B
+#: *improves* resolution, so the floor gets harder to hit, not easier. The module was
+#: skipped rather than weakened, because the contract it covers is real and was a
+#: genuine defect once.
+#:
+# [DECISION-UNDERPOWERED-FIXTURE-0001] The skip is LIFTED. The fixture it
+# waited for now exists: `single_pathogenic_residue` (N_P = 1, N_B = 19,
+# mirroring DSC2 in the ACMG SF v3.2 batch) reaches TEST_CANNOT_REJECT through
+# the COMBINATORIAL floor, which does not move with B — measured at the frozen
+# B = 100,000: binding_floor = "combinatorial", p_floor = 0.01667 against
+# c_1 = 0.000685, and increasing_B_is_futile = True.
+
+
 @pytest.fixture(scope="module")
 def underpowered_run(tmp_path_factory, config):
     from hotspot3d.orchestration.pipeline import SourceBundle, run_pipeline
     from tests.fixtures.synthetic_annotation import MockAnnotationSource
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
 
-    assert config.get("permutation.B_default") == 10_000, (
+    assert config.get("permutation.B_default") == 100_000, (
         "this test must exercise the frozen production B, not an overlay")
 
     tmp = tmp_path_factory.mktemp("underpowered")
-    fixture = make_synthetic_case("permutation_resolution")
+    fixture = make_synthetic_case("single_pathogenic_residue")
     sources = SourceBundle(variant_source=fixture.source,
                            structure_source=fixture.source,
                            annotation_source=MockAnnotationSource())
@@ -100,10 +118,34 @@ def underpowered_run(tmp_path_factory, config):
 
 
 def _certificate(result):
-    path = (result.run_root / "FULL_RESULTS" / "06_FINAL_HOTSPOTS"
-            / "power_certificate.json")
-    assert path.is_file(), "the power certificate is missing"
-    return json.loads(path.read_text())
+    """The certificate, wherever the run stopped.
+
+    [DECISION-UNDERPOWERED-FIXTURE-0001] With the combinatorial floor binding, the
+    PREFLIGHT certificate fires and Stage B stops at 05_HOTSPOT_RADIUS, so
+    06_FINAL_HOTSPOTS is NOT_RUN and holds no certificate. The old fixture reached the
+    resolution floor later and left one at 06.
+    """
+    fr = result.run_root / "FULL_RESULTS"
+    for stage in ("05_HOTSPOT_RADIUS", "06_FINAL_HOTSPOTS"):
+        path = fr / stage / "power_certificate.json"
+        if path.is_file():
+            return json.loads(path.read_text())
+    raise AssertionError("the power certificate is missing from 05 and 06")
+
+
+def _binding_block(cert):
+    """The populated half of the certificate.
+
+    [DECISION-UNDERPOWERED-FIXTURE-0001] When the combinatorial floor binds, the
+    PREFLIGHT certificate fires and the per-centre test never runs, so `posthoc` is
+    empty. The resolution route filled `posthoc` instead. The contract is that the
+    certificate names which floor binds — not which half of it is populated.
+    """
+    for half in ("posthoc", "preflight"):
+        block = cert.get(half) or {}
+        if block.get("p_floor") is not None:
+            return block
+    raise AssertionError(f"neither certificate half carries a floor: {cert.keys()}")
 
 
 def test_the_fixture_is_genuinely_underpowered_at_the_frozen_b(underpowered_run):
@@ -115,16 +157,21 @@ def test_the_fixture_is_genuinely_underpowered_at_the_frozen_b(underpowered_run)
     directly against the certificate rather than assumed.
     """
     cert = _certificate(underpowered_run)
-    posthoc = cert["posthoc"]
-    assert posthoc["B"] == 10_000, "B was not the frozen production value"
-    assert posthoc["p_res"] == pytest.approx(1.0 / 10_001, rel=1e-9)
-    m = posthoc["m_test_family_size"]
-    q = 0.05
-    assert m > q * 10_001, (
-        f"m={m} does not clear q*(B+1)={q * 10_001:g} at the frozen B — the "
-        f"fixture did not reach the regime this test exercises")
-    assert posthoc["binding_floor"] == "permutation_resolution"
-    assert posthoc["p_floor"] == pytest.approx(posthoc["p_res"])
+    block = _binding_block(cert)
+    B = int(block["B"])
+
+    assert B == 100_000, "B was not the frozen production value"
+    assert block["binding_floor"] == "combinatorial", (
+        "the premise of this module is that the COMBINATORIAL floor binds — the "
+        "resolution floor recedes as B rises and is unreachable at the frozen B")
+    assert block["p_floor"] > block["c_1_rank1_critical_value"], block
+    assert block["p_floor"] > 1.0 / (B + 1), (
+        "p_floor must be set by the cohort, not by the permutation resolution")
+
+    # the property that makes this fixture stable at ANY B, which is the whole point
+    assert block["increasing_B_is_futile"] is True, (
+        "a fixture whose floor recedes with B cannot guard this terminal state")
+    assert block["N_P"] == 1, "the degenerate cohort is what makes the floor binding"
 
 
 def test_the_run_terminates_underpowered_and_not_as_a_fault(underpowered_run):
@@ -164,17 +211,19 @@ def test_the_certificate_is_written_and_explains_which_floor_binds(underpowered_
     """§5.4 + §11 — a first-class artifact in every terminal state."""
     cert = _certificate(underpowered_run)
     assert cert["PASSES"] is False
-    posthoc = cert["posthoc"]
-    assert posthoc["p_floor"] > posthoc["c_1_rank1_critical_value"]
+    block = _binding_block(cert)
+    assert block["p_floor"] > block["c_1_rank1_critical_value"]
     for key in ("N_P", "N_B", "m_test_family_size", "B", "p_res", "p_comb_best",
                "p_floor"):
-        assert key in posthoc, f"certificate omits {key}"
+        assert key in block, f"certificate omits {key}"
 
-    # p_res binds here, so the remedy is a concrete B, not the "increasing B is
-    # futile" wording the combinatorial branch must give instead.
-    assert posthoc["binding_floor"] == "permutation_resolution", posthoc
-    assert posthoc["increasing_B_is_futile"] is False
-    assert posthoc.get("B_to_clear_c_1")
+    # The combinatorial floor binds, so the remedy wording must be the opposite of the
+    # resolution branch's: no B clears this, and the certificate has to say so rather
+    # than name a ladder value that would not help.
+    assert block["binding_floor"] == "combinatorial", block
+    assert block["increasing_B_is_futile"] is True
+    assert block["p_floor"] == pytest.approx(block["p_comb_best"]), (
+        "the floor must be the combinatorial one it names")
 
 
 def test_downstream_stages_are_uninformative_not_failed(underpowered_run):

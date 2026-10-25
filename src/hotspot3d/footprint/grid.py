@@ -46,10 +46,29 @@ class GridSpec:
     def voxel_volume(self) -> float:
         return float(self.h ** 3)
 
+    #: [DECISION-VOXEL-TIE-0001] Absorbs floating-point noise at a cell boundary, and
+    #: nothing larger. Coordinates arrive with 1e-3 A precision and the cell edge is
+    #: 0.5 A, so the smallest REAL distinction in index units is 2e-3 — five hundred
+    #: thousand times this tolerance. It can therefore only move a point that the
+    #: arithmetic placed a few ULP below an integer it sits exactly on; it can never
+    #: reassign a point with a genuine sub-cell offset.
+    _INDEX_TOLERANCE = 1e-9
+
     def index_of(self, points: np.ndarray) -> np.ndarray:
-        """Voxel indices containing ``points``, clipped into the grid."""
+        """Voxel indices containing ``points``, clipped into the grid.
+
+        [DECISION-VOXEL-TIE-0001] A point lying exactly on a cell boundary belongs to
+        the UPPER cell, deterministically. Without the tolerance that case was decided
+        by which side the float division happened to land on, so the same physical
+        point could occupy different cells under different grid origins: PTPN11's
+        center 507 gave `(p - origin)/h` = 54.0 under one origin and
+        15.999999999999998 under another, one voxel apart. That moved one seed, the
+        EDT reclassified a shell at the r_fp isosurface, and the reported volume
+        changed by 32 A^3 for a reason that was purely arithmetic.
+        """
         pts = np.atleast_2d(np.asarray(points, dtype=np.float64))
-        idx = np.floor((pts - np.asarray(self.origin)) / self.h).astype(np.int64)
+        quotient = (pts - np.asarray(self.origin)) / self.h
+        idx = np.floor(quotient + self._INDEX_TOLERANCE).astype(np.int64)
         upper = np.asarray(self.shape, dtype=np.int64) - 1
         return np.clip(idx, 0, upper)
 

@@ -813,6 +813,36 @@ CASE_SPECS: dict[str, _CaseSpec] = {
         reaches_stage_cd=True,
         exercises=("permutation_resolution_diagnostic", "b_ladder_recommendation"),
     ),
+    # [DECISION-UNDERPOWERED-FIXTURE-0001] UNDERPOWERED via the COMBINATORIAL floor,
+    # which is the only route that survives the frozen B = 100,000.
+    #
+    # `permutation_resolution` above reaches TEST_CANNOT_REJECT through the
+    # PERMUTATION-RESOLUTION floor p_res = 1/(B+1). That floor recedes as B rises, so
+    # at B = 100,000 the case clears it and the terminal state it was built to produce
+    # is unreachable — which is why tests/integration/test_underpowered_terminal_state.py
+    # has been skipped in its entirety, leaving a defect class that has actually
+    # occurred (an uninformative run typed BLOCKED/TECHNICAL_FAILURE) with no guard.
+    #
+    # The combinatorial floor does not move with B. With N_P = 1 the most extreme
+    # observation any sphere can produce is its single pathogenic residue, so the
+    # smallest attainable tail is n_U/M — of order 1e-2 on a protein this size, while
+    # the rank-1 bar c_1 = q/m is of order 1e-3 or below once the family has tens of
+    # members. p_floor > c_1 therefore holds at ANY B, from the cohort alone.
+    #
+    # This is not a parameter chosen to force an outcome: it is the degenerate cohort,
+    # and the ACMG SF v3.2 batch contains it for real — DSC2 (N_P = 1, N_B = 19) and
+    # TMEM43 (N_P = 1, N_B = 15) both terminate UNDERPOWERED. The fixture mirrors DSC2.
+    "single_pathogenic_residue": _CaseSpec(
+        length=180, n_plp=1, n_blb=19, n_conflict=0,
+        selection=SELECT_SPREAD, low_tail_from=None,
+        seed=MASTER_FIXTURE_SEED + 9,
+        purpose=("one pathogenic residue against a viable benign class — the "
+                 "degenerate cohort that cannot reject at ANY B because the "
+                 "COMBINATORIAL floor, not the permutation-resolution floor, is "
+                 "binding. Mirrors DSC2 (N_P=1, N_B=19) in the ACMG SF v3.2 batch"),
+        exercises=("underpowered_terminal_state", "combinatorial_floor_binds",
+                   "uninformative_is_not_a_negative"),
+    ),
 }
 
 CASE_NAMES: tuple[str, ...] = tuple(CASE_SPECS)

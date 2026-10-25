@@ -267,8 +267,45 @@ def _mean_intra_distance(dist: np.ndarray, mask: np.ndarray) -> float:
     return float(upper.mean())
 
 
-def gate_failure_record(evaluation: GateEvaluation, gate: PosthocGate) -> dict[str, Any]:
-    """What is written when the gate fails: the numbers, not just a verdict."""
+def gate_failure_record(evaluation: GateEvaluation, gate: PosthocGate, *,
+                        mechanisms_not_run: bool = False) -> dict[str, Any]:
+    """What is written when the gate does not pass: the numbers, not just a verdict.
+
+    [DECISION-STAGE-E-SCOPE-0001, extended] Two different situations reach here and
+    they must not be reported the same way:
+
+    * the curated source WAS queried and the evidence fell short — a genuine
+      scientific negative about what the literature currently supports;
+    * the curated source was never queried at all, because it is out of scope. Then
+      nothing was weighed, and calling it a negative repeats exactly the misreport
+      that decision already fixed for ``mechanism_counts`` (all-zero counts read as
+      "we curated the literature and found nothing" — the opposite of the truth).
+      That record's own text anticipates this: it states the post hoc gate "therefore
+      cannot pass". A gate that cannot pass has not failed; it was not evaluable.
+    """
+    if mechanisms_not_run:
+        return {
+            "analysis_type": ANALYSIS_TYPE,
+            "status": "NOT_EVALUABLE",
+            "outcome_type": "NOT_APPLICABLE",
+            "reason": ("the curated mechanism source is out of scope and was never "
+                       "queried, so no variant could reach any evidence level — the "
+                       "gate was not evaluated, and did not fail"),
+            "not_evaluable": {
+                "condition": "MECHANISM_SOURCE_NOT_QUERIED",
+                "detail": (
+                    "literature_mechanisms is out of scope "
+                    "(DECISION-STAGE-E-SCOPE-0001). Every mechanism label therefore "
+                    "defaults to Not_Experimentally_Characterized and mechanism_counts "
+                    "is null, so the gate has no evidence to weigh. This says nothing "
+                    "about what the literature contains."
+                ),
+                "upstream_cause": "LITERATURE_MECHANISMS_NOT_RUN",
+            },
+            "gate": evaluation.as_numbers(),
+            "near_miss_is_not_a_pass": True,
+            "feeds_upstream": False,
+        }
     return {
         "analysis_type": ANALYSIS_TYPE,
         "status": "NOT_RUN",

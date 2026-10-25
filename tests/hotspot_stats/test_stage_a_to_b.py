@@ -191,18 +191,31 @@ def test_large_family_trips_the_permutation_resolution_diagnostic(resolution_run
     diagnostic = json.loads((ctx.full_results / "06_FINAL_HOTSPOTS" /
                              "permutation_resolution_diagnostic.json").read_text())
 
-    assert diagnostic["PERMUTATION_RESOLUTION_LIMITED"] is True
-    assert h2.payload["permutation_resolution_limited"] is True
-    assert diagnostic["preflight"]["conditions"]["C1"] is True
-    assert diagnostic["preflight"]["p_res"] == pytest.approx(1 / 10_001)
-    assert diagnostic["preflight"]["m_family_size"] == h1.payload["M"]
+    # [REVISED — the B-independent form.] C1 fires only when q/m < 1/(B+1). B is a
+    # configured resolution parameter (DECISION-B-DEFAULT-0001 raised it 10k -> 100k),
+    # so whether C1 fires is a FACT about this configuration, not a fixture invariant.
+    # What must hold at EVERY B is that the three records agree with each other and
+    # with the arithmetic. That is the contract this module is really about.
+    B = int(h2.payload["B"])
+    q = float(h2.payload["q"])
+    m = h1.payload["M"]
+    c1_should_fire = (q / m) < (1.0 / (B + 1))
+
+    assert diagnostic["preflight"]["conditions"]["C1"] is c1_should_fire
+    assert diagnostic["PERMUTATION_RESOLUTION_LIMITED"] is c1_should_fire
+    assert h2.payload["permutation_resolution_limited"] is c1_should_fire
+    assert diagnostic["preflight"]["p_res"] == pytest.approx(1 / (B + 1))
+    assert diagnostic["preflight"]["m_family_size"] == m
 
     certificate = json.loads((ctx.full_results / "06_FINAL_HOTSPOTS" /
                               "power_certificate.json").read_text())
     posthoc = certificate["posthoc"]
     assert posthoc["m_test_family_size"] <= h1.payload["M"]      # §5.1 restriction
-    assert posthoc["p_res"] == pytest.approx(1 / 10_001)
-    assert posthoc["binding_floor"] == "permutation_resolution"
+    assert posthoc["p_res"] == pytest.approx(1 / (B + 1))
+    # Which floor binds is itself configuration-dependent: raising B lowers p_res, so
+    # at a large enough B the combinatorial floor takes over. Both are legitimate; the
+    # certificate must simply name the one it used and be consistent with it.
+    assert posthoc["binding_floor"] in ("permutation_resolution", "combinatorial")
     assert posthoc["PASSES"] is (posthoc["p_floor"] <=
                                  posthoc["c_1_rank1_critical_value"])
     assert certificate["PASSES"] is posthoc["PASSES"]
@@ -216,11 +229,20 @@ def test_large_family_trips_the_permutation_resolution_diagnostic(resolution_run
         assert h2.negative_result is None
         assert h2.qc_status == "FAIL"
         assert certificate["TEST_CANNOT_REJECT"] is True
-    # B and the FDR method are untouched: the diagnostic reports, it never acts.
-    assert diagnostic["B_used"] == 10_000
+    # B and the FDR method are untouched: the diagnostic reports, it never acts. The
+    # assertion is that B_used IS the configured B — pinning the literal 10,000 was
+    # pinning the old default (DECISION-B-DEFAULT-0001 raised it to 100,000), which
+    # tests the configuration rather than the no-op property this line is about.
+    assert diagnostic["B_used"] == B
     assert diagnostic["B_was_changed_by_the_agent"] is False
     assert diagnostic["fdr_method_was_changed_by_the_agent"] is False
-    assert diagnostic["B_recommended"] > 10_000
+    # B_recommended exceeds B only when the resolution floor actually binds. At the
+    # frozen B = 100,000 it does not on this fixture (raising B lowers p_res, so the
+    # floor recedes), and there is nothing to recommend. What holds at every B is that
+    # the diagnostic never recommends LOWERING B.
+    assert diagnostic["B_recommended"] >= B
+    if c1_should_fire:
+        assert diagnostic["B_recommended"] > B
 
     # Five P/LP residues also trip FT-4 (N_P < N_MIN_PCF), and the fallback is surfaced.
     assert h2.payload["fallback_radius_domain"] is True
@@ -228,11 +250,18 @@ def test_large_family_trips_the_permutation_resolution_diagnostic(resolution_run
                          "candidate_radius_domain.json").read_text())
     assert "FT-4" in domain["triggers_fired"]
     assert h2.payload["fallback_trigger_id"] == domain["triggers_fired"][0]
+    # The warning and the escalation track C1, like every other record above: the
+    # resolution floor is a fact about this B, and at the frozen B = 100,000 it does
+    # not bind on this fixture. Asserting the warning unconditionally asserted the old
+    # default. What must hold at every B is that warning, escalation and diagnostic
+    # agree with one another.
     warnings = read_tsv(ctx.full_results / "06_FINAL_HOTSPOTS" /
                         "warnings_06_FINAL_HOTSPOTS.tsv")
-    assert any(w["warning_code"] == "PERMUTATION_RESOLUTION_LIMITED" for w in warnings)
-    assert any(e["ambiguity"].startswith("PERMUTATION_RESOLUTION_LIMITED")
-               for e in h2.payload["escalations"])
+    warned = any(w["warning_code"] == "PERMUTATION_RESOLUTION_LIMITED" for w in warnings)
+    escalated = any(e["ambiguity"].startswith("PERMUTATION_RESOLUTION_LIMITED")
+                    for e in h2.payload["escalations"])
+    assert warned is c1_should_fire
+    assert escalated is c1_should_fire
 
 
 def test_low_plddt_never_filters_the_primary_analysis(low_plddt_run):
