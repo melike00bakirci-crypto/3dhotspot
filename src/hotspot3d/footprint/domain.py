@@ -2,17 +2,27 @@
 
     merge scales : {w_k / 2} over the edges of the Euclidean MST of S
     rho_all      : max_k w_k / 2
-    rho_min      : 5.0 A                                   (DECISION-FOOTPRINT-DOMAIN-0001)
-    rho_max      : min(0.25 * D_max, 25.0)                 (DECISION-FOOTPRINT-DOMAIN-0001)
-    step_fp      : 0.5 A, uniform and never adaptive
+[REVISED — DECISION-RFP-CONTAINMENT-0001] ``r_fp`` is no longer searched for; it is
+DETERMINED by containment:
 
-The merge scales **inform the upper bound and are reported as events; they never
-determine ``r_fp``** (F10). ``r_hot`` plays no part here whatsoever: it is not an
-argument to any function in this module, which is the mechanical form of the
-guarantee that ``r_fp`` is neither set equal to nor bounded below by ``r_hot``.
+    r_fp = max over the evidence set of (distance to nearest significant center),
+           rounded UP to the step grid
+
+The evidence set arrives as an :class:`~hotspot3d.footprint.inputs.EvidenceSet` —
+per-residue distances and an ``in_evidence`` verdict. It carries no radius.
+
+``r_hot`` STILL plays no part in this module: it is not an argument to any function
+here, which is the mechanical form of the guarantee this docstring has always made.
+The ``r_hot`` comparison lives in exactly one place, the single sanctioned
+``ReadOnlyHotspotRadius.derive_evidence_set``, and its numeric value never leaves
+that method.
+
+``derive_domain`` and its search envelope are retained to supply ``D_max`` and the
+MST merge scales, which the decision keeps as reported events. They bound nothing.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -64,9 +74,13 @@ class FootprintDomain:
             "single_center_special_case": self.single_center_special_case,
             "rho_max_binding_constraint": self.binding_constraint,
             "rho_max_candidates_A": {k: v for k, v in self.rho_max_candidates},
-            "note": ("Merge scales inform rho_max and are reported as events; they "
-                     "never determine r_fp (F10). r_hot is not an input to this "
-                     "derivation."),
+            "note": ("[DECISION-RFP-CONTAINMENT-0001] r_fp is DETERMINED by "
+                     "containment, so rho_min == rho_max == r_fp and the grid has one "
+                     "member. Merge scales are reported as events and determine "
+                     "nothing. r_hot is not an argument to any function in this "
+                     "module; it reaches the stage only as the per-residue boolean in "
+                     "the evidence set. See the `containment` block for the "
+                     "determination itself."),
         }
 
 
@@ -161,3 +175,91 @@ def binding_constraint_detail(domain: FootprintDomain,
         "single_center_special_case": domain.single_center_special_case,
     }
     return detail
+
+
+def derive_containment_domain(center_coords: np.ndarray, universe_coords: np.ndarray,
+                              evidence, params: FootprintParams
+                              ) -> tuple[FootprintDomain, dict]:
+    """DECISION-RFP-CONTAINMENT-0001 — ``r_fp`` as the containment minimum.
+
+    Takes an ``EvidenceSet``, never a radius. Returns a ONE-POINT domain at ``r_fp``
+    plus the record that the reporting layer consumes. The grid has a single member
+    by construction: the radius is the unique solution of a constraint (L4), so there
+    is nothing to select among. Downstream QC, export and reporting therefore see a
+    sweep of exactly one candidate and keep working unchanged — the geometric
+    descriptors are computed and reported, and cannot decide anything because no
+    alternative exists to prefer.
+
+    Raises :class:`NegativeResult` when the evidence set is empty. By L1 that cannot
+    happen for a non-empty center set: a center is significant because its sphere is
+    P/LP-enriched, and a sphere holding no P/LP cannot reject. The guard is here so a
+    violation of the lemma fails loudly instead of yielding a degenerate radius.
+    """
+    centers = np.atleast_2d(np.asarray(center_coords, dtype=np.float64))
+    universe = np.asarray(universe_coords, dtype=np.float64)
+    d_max = float(protein_diameter(universe))
+
+    # Merge scales are still computed: the decision keeps them as reported events.
+    edges = tuple((int(i), int(j), float(w)) for i, j, w in mst_edges(centers))
+    merge_scales = tuple(round(w / 2.0, _GRID_DECIMALS) for _, _, w in edges)
+    rho_all = float(max(merge_scales)) if merge_scales else None
+
+    inside = list(evidence.evidence)
+    if not inside:
+        raise NegativeResult(
+            "NO_EVIDENCE_SET",
+            "no P/LP residue lies inside the detection neighbourhood of any "
+            "significant center, so the containment radius is undefined. L1 of "
+            "DECISION-RFP-CONTAINMENT-0001 says this cannot occur for a non-empty "
+            "center set; reaching it means the significance decision and the "
+            "classified cohort disagree.",
+            n_centers=int(len(centers)), n_plp_mapped=int(evidence.n_plp_mapped),
+        )
+
+    binding = max(inside, key=lambda r: r.distance_A)
+    r_contain_exact = float(binding.distance_A)
+
+    # Rounded UP to the step grid. The direction is a correctness condition, not a
+    # style choice: rounding DOWN would drop the binding residue out of the footprint
+    # and break L3, which is the entire content of the rule. Measured cost over six
+    # archived runs: 0-2 extra unclassified residues, with P/LP, B/LB and component
+    # counts unchanged in all six. The exact value is recorded beside it so the slack
+    # stays auditable.
+    step = float(params.step_fp_A)
+    r_fp = math.ceil(r_contain_exact / step) * step
+
+    dists = sorted(r.distance_A for r in inside)
+    q1, med, q3 = (float(np.percentile(dists, p)) for p in (25, 50, 75))
+    iqr = q3 - q1
+    fence = q3 + 1.5 * iqr
+
+    n_out = evidence.n_plp_mapped - len(inside)
+    record = {
+        "rule": "DECISION-RFP-CONTAINMENT-0001",
+        "selector": "containment",
+        "r_contain_exact_A": r_contain_exact,
+        "r_contain_A": r_fp,
+        "grid_slack_A": r_fp - r_contain_exact,
+        "n_plp_mapped": int(evidence.n_plp_mapped),
+        "n_evidence_set": len(inside),
+        "n_plp_outside_evidence": int(n_out),
+        "fraction_plp_outside_evidence": (
+            n_out / evidence.n_plp_mapped if evidence.n_plp_mapped else None),
+        "binding_residue": int(binding.residue_id),
+        "binding_nearest_center": int(binding.nearest_center_id),
+        "evidence_distance_median_A": med,
+        "evidence_distance_q1_A": q1,
+        "evidence_distance_q3_A": q3,
+        "evidence_distance_iqr_A": iqr,
+        "binding_residue_is_outlier": bool(r_contain_exact > fence),
+        "outlier_fence_A": fence,
+    }
+
+    domain = FootprintDomain(
+        rho_min=r_fp, rho_max=r_fp, rho_all=rho_all, step=step,
+        grid=(r_fp,), d_max=d_max, mst=edges, merge_scales=merge_scales,
+        single_center_special_case=(len(centers) == 1),
+        binding_constraint="containment",
+        rho_max_candidates=(("containment", r_fp),),
+    )
+    return domain, record

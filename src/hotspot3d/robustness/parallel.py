@@ -103,14 +103,17 @@ def _run_one(task: tuple[int, tuple[int, ...], str, str]) -> IterationResult:
         centers=s["centers"], universe=s["universe"], params=s["params"],
         original_state=s["original_state"], original_residues=s["original_residues"],
         r_fp_original=s["r_fp_original"], plp=s["plp"], blb=s["blb"],
-        r_hot_value=s["r_hot_value"], undefined_mcc=s["undefined_mcc"])
+        r_hot_value=s["r_hot_value"], undefined_mcc=s["undefined_mcc"],
+        evidence_residues=s["evidence_residues"])
 
 
 def run_iterations(tasks, *, n_workers: int, worker_nice: int, centers: CenterSet,
                    universe: Universe, params: FootprintParams, original_state,
                    original_residues: frozenset, r_fp_original: float,
                    plp: frozenset, blb: frozenset, r_hot_value: float,
-                   undefined_mcc: float) -> list[IterationResult]:
+                   undefined_mcc: float,
+                   evidence_residues: tuple[int, ...] = ()
+                   ) -> list[IterationResult]:
     """Run every ``(index, removed, mode, seed_context)`` task in ``tasks``.
 
     ``n_workers <= 1`` (or fewer than 2 tasks) runs serially in THIS process —
@@ -130,7 +133,8 @@ def run_iterations(tasks, *, n_workers: int, worker_nice: int, centers: CenterSe
                           original_state=original_state,
                           original_residues=original_residues,
                           r_fp_original=r_fp_original, plp=plp, blb=blb,
-                          r_hot_value=r_hot_value, undefined_mcc=undefined_mcc)
+                          r_hot_value=r_hot_value, undefined_mcc=undefined_mcc,
+                          evidence_residues=evidence_residues)
             for index, removed, mode, seed_context in tasks
         ]
 
@@ -138,7 +142,8 @@ def run_iterations(tasks, *, n_workers: int, worker_nice: int, centers: CenterSe
     inputs = dict(centers=centers, universe=universe, params=params,
                   original_state=original_state, original_residues=original_residues,
                   r_fp_original=r_fp_original, plp=plp, blb=blb,
-                  r_hot_value=r_hot_value, undefined_mcc=undefined_mcc)
+                  r_hot_value=r_hot_value, undefined_mcc=undefined_mcc,
+                  evidence_residues=evidence_residues)
 
     # spawn, not the platform default (fork on Linux): a forked child can
     # inherit an already-initialized, multi-threaded BLAS pool from the

@@ -103,14 +103,11 @@ class FootprintParams:
     def from_config(cls, cfg: FrozenConfig) -> "FootprintParams":
         cfg.require_all(REQUIRED_CONFIG_KEYS)
 
-        # F10 is structural, not stylistic: r_fp must never be bounded by r_hot.
-        if bool(cfg.get("footprint_domain.bound_below_by_r_hot")):
-            raise BlockedError(
-                "FROZEN methodology violation (F10): "
-                "footprint_domain.bound_below_by_r_hot is TRUE. r_fp is an "
-                "independent analytical quantity and is neither set equal to nor "
-                "bounded below by r_hot."
-            )
+        # [DECISION-RFP-CONTAINMENT-0001] The old F10 check read a config flag and
+        # could therefore be satisfied while the code did the opposite. It is
+        # replaced by a check on actual behaviour: r_hot may reach exactly one
+        # method, and the radius determination must not be able to see it.
+        _assert_r_hot_containment_boundary()
         if bool(cfg.get("footprint_qc.relax_on_failure")):
             raise BlockedError(
                 "FROZEN methodology violation (II.10): footprint_qc.relax_on_failure "
@@ -244,3 +241,51 @@ def _objective_names(entries: Sequence[dict]) -> tuple[str, ...]:
             )
         names.append(str(entry["name"]))
     return tuple(names)
+
+
+def _assert_r_hot_containment_boundary() -> None:
+    """Behavioural replacement for the retired F10 flag check.
+
+    DECISION-RFP-CONTAINMENT-0001 narrowed the ``r_hot`` exemption to a single named
+    method on ``ReadOnlyHotspotRadius``; everything downstream of it must work from
+    the ``EvidenceSet``, never from the radius. Two properties are cheap to verify at
+    every run start and are the ones that would silently rot:
+
+    1. no function in ``footprint.domain`` accepts an ``r_hot`` parameter
+    2. no field of ``EvidenceRecord``/``EvidenceSet`` is named for a radius
+
+    The third property — that ``derive_evidence_set`` has exactly one call site — is
+    an AST audit over the source tree and lives in
+    ``tests/footprint/test_evidence_set_exemption.py``, mirroring how the Stage A
+    star audit is placed.
+    """
+    import inspect
+
+    from . import domain as _domain
+    from .inputs import EvidenceRecord, EvidenceSet
+
+    leaked = []
+    for name, obj in vars(_domain).items():
+        if not callable(obj) or not hasattr(obj, "__code__"):
+            continue
+        if getattr(obj, "__module__", None) != _domain.__name__:
+            continue
+        leaked += [f"{name}({prm})" for prm in inspect.signature(obj).parameters
+                   if "r_hot" in prm.lower()]
+    if leaked:
+        raise BlockedError(
+            f"CONTAINMENT BOUNDARY VIOLATION (DECISION-RFP-CONTAINMENT-0001): "
+            f"r_hot reached footprint/domain.py as {leaked}. r_contain is computed "
+            f"from an EvidenceSet precisely so that module never sees the radius; "
+            f"the numeric value leaves ReadOnlyHotspotRadius nowhere."
+        )
+
+    for cls in (EvidenceRecord, EvidenceSet):
+        bad = [f for f in getattr(cls, "__dataclass_fields__", {})
+               if "r_hot" in f.lower() or f.lower() in ("radius", "radius_a")]
+        if bad:
+            raise BlockedError(
+                f"CONTAINMENT BOUNDARY VIOLATION: {cls.__name__} grew a radius "
+                f"field {bad}. The exemption promises that only a per-residue "
+                f"boolean verdict leaves derive_evidence_set."
+            )

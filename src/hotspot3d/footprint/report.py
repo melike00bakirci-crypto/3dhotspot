@@ -27,7 +27,7 @@ def write_stage_c_report(path: Path, solution: FootprintSolution,
                          universe: Universe, params: FootprintParams,
                          center_ids: tuple[int, ...], warnings: list,
                          escalations: list[dict], code_version: str,
-                         run_id: str, gene: str, diagnostics=None) -> Path:
+                         run_id: str, gene: str) -> Path:
     domain = solution.domain
     result = solution.selection
     state = solution.selected
@@ -69,72 +69,81 @@ def write_stage_c_report(path: Path, solution: FootprintSolution,
 
     add("### Selected footprint radius")
     add("")
+    # [DECISION-RFP-CONTAINMENT-0001] This section used to report the normalized
+    # objective vector, the L2 distance to utopia (1,1,1,1), the Pareto membership
+    # count, the tie chain and the v2 degeneracy diagnostics. None of those happened:
+    # r_fp is DETERMINED by containment, and a report describing a selection that did
+    # not run is how a reader ends up citing the wrong methodology.
+    record = solution.containment or {}
     if solution.r_fp is None:
-        add("**No admissible footprint radius was identified.** This is a complete "
-            "scientific result, not a failure; the domain, every candidate and every "
-            "rejection reason are retained in `r_fp_scan.tsv`.")
+        add("**No footprint radius survived QC.** This is a complete scientific "
+            "result, not a failure. The radius was determined — the determination is "
+            "in `evidence_set.tsv` and `footprint_decision.json` — and then rejected "
+            "on geometry; it is never shrunk to pass a gate, because that would drop "
+            "an evidence residue. Every metric and the rejection reason are retained "
+            "in `footprint_descriptors.tsv`, and `sensitivity_band.tsv` shows what the "
+            "footprint would have been at every radius in the plausible range.")
     else:
-        norm = result.normalized.get(solution.r_fp, {})
-        add(f"- **`r_fp` = {_fmt(solution.r_fp)} A**")
-        add(f"- normalized objective vector "
-            f"(compactness, connectivity, stability, parsimony) = "
-            f"({_fmt(norm.get('compactness'))}, {_fmt(norm.get('connectivity'))}, "
-            f"{_fmt(norm.get('stability'))}, {_fmt(norm.get('parsimony'))})")
-        add(f"- L2 distance to utopia (1,1,1,1) = "
-            f"{_fmt(result.distances.get(solution.r_fp))}")
-        add(f"- Pareto members: {len(result.pareto_members)} of "
-            f"{result.n_admissible} admissible candidates")
-        add(f"- tie chain applied: {' -> '.join(result.tie_chain_applied)}")
+        add(f"- **`r_fp` = {_fmt(solution.r_fp)} A** — determined, not selected")
+        add(f"- `r_contain` = {_fmt(record.get('r_contain_exact_A'))} A exactly, "
+            f"rounded UP to the {_fmt(params.step_fp_A)} A grid "
+            f"(slack {_fmt(record.get('grid_slack_A'))} A). Rounding up is a "
+            f"correctness condition: rounding down would drop the binding residue.")
+        add(f"- bound by residue **{record.get('binding_residue')}**, whose nearest "
+            f"significant center is {record.get('binding_nearest_center')}")
+        add(f"- evidence set: {record.get('n_evidence_set')} of "
+            f"{record.get('n_plp_mapped')} mapped P/LP residues lie within `r_hot` of "
+            f"some significant center; {record.get('n_plp_outside_evidence')} "
+            f"({_fmt(record.get('fraction_plp_outside_evidence'))}) lie outside and no "
+            f"center-anchored footprint can reach them")
+        add(f"- evidence distances: median {_fmt(record.get('evidence_distance_median_A'))} A, "
+            f"IQR {_fmt(record.get('evidence_distance_iqr_A'))} A "
+            f"(Q1 {_fmt(record.get('evidence_distance_q1_A'))}, "
+            f"Q3 {_fmt(record.get('evidence_distance_q3_A'))})")
         add("")
-        if diagnostics is not None:
-            add(f"- effective objectives entering distance-to-utopia: "
-                f"`{diagnostics.effective_objectives}`. Degenerate (identical at "
-                f"every admissible candidate, therefore non-informative and "
-                f"excluded): `{diagnostics.degenerate_objectives}`.")
+        if record.get("binding_residue_is_outlier"):
+            add(f"> **CONTAINMENT_BINDING_RESIDUE_IS_OUTLIER** — residue "
+                f"{record.get('binding_residue')} sits beyond the "
+                f"{_fmt(record.get('outlier_fence_A'))} A upper fence of the evidence "
+                f"distance distribution. `r_fp` therefore rests on one unusually "
+                f"distant residue rather than on the body of the evidence. The radius "
+                f"is NOT adjusted for this — dropping the residue would break "
+                f"containment — but the dependence is reported so it can be weighed.")
             add("")
-            if diagnostics.vacuous_pareto:
-                add(f"> **VACUOUS_PARETO_SELECTION** — {diagnostics.vacuous_reason}. "
-                    f"`r_fp` was not selected by trading objectives off; it was the "
-                    f"only non-dominated survivor.")
-                add("")
-            if diagnostics.admissibility_dominates:
-                add(f"> **ADMISSIBILITY_DOMINATES_SELECTION** — "
-                    f"{_fmt(diagnostics.inadmissible_fraction)} of scanned "
-                    f"candidates were inadmissible, by rule "
-                    f"`{diagnostics.inadmissible_by_rule}`. Admissibility, not the "
-                    f"objectives, decided the outcome. Significance is never one "
-                    f"of the eliminating rules (QC_F1/F2/F3 are purely geometric).")
-                add("")
-        add("#### Stability behaviour around the selection")
+        if record.get("detection_scale_below_resolution"):
+            add(f"> **DETECTION_SCALE_BELOW_3D_RESOLUTION** — the determined radius is "
+                f"below the scale at which this voxel grid resolves structure. The "
+                f"geometric descriptors below are reported but should not be read as "
+                f"shape measurements.")
+            add("")
+        add("No objective vector, utopia point, Pareto front or tie chain appears "
+            "here: with one candidate there is nothing to trade off and nothing to "
+            "break a tie between. The geometric descriptors in "
+            "`footprint_descriptors.tsv` are reported and decide nothing.")
         add("")
-        add("| rho (A) | stability | ARI(prev) | ARI(next) | n_comp | coverage |")
-        add("|---|---|---|---|---|---|")
-        centre = [i for i, r in enumerate(rows) if abs(r.rho - solution.r_fp) < 1e-9]
-        span = range(max(0, centre[0] - 2), min(len(rows), centre[0] + 3)) if centre \
-            else range(len(rows))
-        for i in span:
-            r = rows[i]
-            mark = " **<-**" if abs(r.rho - solution.r_fp) < 1e-9 else ""
-            add(f"| {_fmt(r.rho)}{mark} | {_fmt(r.stability)} | {_fmt(r.ari_prev)} | "
-                f"{_fmt(r.ari_next)} | {r.n_components} | {_fmt(r.coverage)} |")
+        add("#### Sensitivity to `r_hot`")
+        add("")
+        add("`r_fp` is a function of the evidence set, which `r_hot` defines, and "
+            "`r_hot` is still chosen by a multi-objective procedure that can turn on a "
+            "sub-percent margin. `sensitivity_band.tsv` is the mitigation: it lists "
+            "the footprint at every radius from the resolution floor up to `r_hot`, "
+            "with the determined one marked, so how much of the result rests on the "
+            "exact radius is readable rather than argued.")
         add("")
 
-    add("### Rejected candidates")
+    add("### QC verdict on the determined radius")
     add("")
     inadmissible = [(r.rho, solution.verdicts[r.rho].reason_text)
                     for r in rows if not solution.verdicts[r.rho].admissible]
-    dominated = sorted(result.dominators)
-    add(f"- inadmissible (QC): {len(inadmissible)} of {len(rows)}")
-    for rho, reason in inadmissible[:15]:
+    add(f"- candidates evaluated: {len(rows)} (containment determines one radius)")
+    add(f"- inadmissible (QC): {len(inadmissible)}")
+    for rho, reason in inadmissible:
         add(f"  - {_fmt(rho)} A — {reason}")
-    if len(inadmissible) > 15:
-        add(f"  - ... {len(inadmissible) - 15} further inadmissible radii, all "
-            f"retained with full metrics in `r_fp_scan.tsv`")
-    add(f"- Pareto-dominated (admissible but dominated): {len(dominated)}")
     add("")
-    add("Every rejected candidate keeps all of its computed metrics and its rejection "
-        "reason in `r_fp_scan.tsv`; `footprint_pareto_dominated.json` records the "
-        "dominating vector for each dominated candidate.")
+    add("There is no Pareto-dominated category: domination is a relation between "
+        "candidates and there is only one. A QC failure escalates and is reported; "
+        "it never moves the radius. Every metric and the rejection reason are "
+        "retained in `footprint_descriptors.tsv`.")
     add("")
 
     add("### Artificial bridging in the final solution")

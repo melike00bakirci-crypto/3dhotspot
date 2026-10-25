@@ -358,25 +358,46 @@ footprint_geometry:
 
 # --- II.9 — candidate r_fp search domain ------------------------------------
 footprint_domain:
-  # [REVISED — DECISION-FOOTPRINT-DOMAIN-0001] The domain is now [5.0,
-  # min(0.25*D_max, 25.0)], structurally identical in FORM to radius_domain (II.2).
-  # The MST-derived 1.25*rho_all term no longer caps rho_max: rho_all measures how
-  # tightly the CENTERS are packed, which is not what the footprint radius is for.
-  # With sequence-adjacent centers the longest MST edge is one Ca-Ca step (~3.8 A),
-  # so 1.25*rho_all ~ 2.4 A < the old 3.0 A floor and the domain came out EMPTY —
-  # 6 of 8 BLOCKED genes in the ACMG SF v3.2 batch, plus 18 genes pinned to the floor.
-  # Merge scales are still computed and still reported as merge events.
-  rho_min_A: 5.0                      # REVISED (was 3.0) — mirrors radius_domain.R_FLOOR
-  rho_max_rule: "min(0.25 * D_max, 25.0)"   # REVISED — MST term removed from the bound
-  rho_all_source: mst_merge_scales    # FROZEN (II.9) — single-linkage heights halved
-  post_merge_factor_caps_rho_max: false   # REVISED — the substantive half of this change
-  post_merge_factor: 1.25             # retained: merge-event reporting and provenance
-  dmax_fraction_cap: 0.25             # FROZEN (II.9) — unchanged, never was the defect
-  hard_ceiling_A: 25.0                # REVISED (was 20.0) — mirrors radius_domain.R_CEIL
-  step_fp_A: 0.5                      # FROZEN (II.9) — uniform, never adaptive
-  # F10 intact: the 5.0 floor is a fixed constant that happens to equal the II.2
-  # constant. It is NOT derived from any run's selected r_hot.
-  bound_below_by_r_hot: false         # FROZEN (F10) — r_fp is independent of r_hot
+  # [SUPERSEDED — DECISION-RFP-CONTAINMENT-0001 retired the search entirely.]
+  # DECISION-FOOTPRINT-DOMAIN-0001 had widened this to [5.0, min(0.25*D_max, 25.0)]
+  # after the MST-derived bound was measured to empty the domain in 6 of 8 BLOCKED
+  # genes and pin r_fp at the floor in 18 of 50 others. That evidence is why an
+  # independent search was abandoned rather than tuned again.
+  # rho_min/rho_max are the SAME value: the containment radius. These two keys are
+  # retired; step_fp_A survives as the rounding grid.
+  rho_max_rule: "containment: max over evidence set, rounded up to step_fp_A"
+  rho_all_source: mst_merge_scales    # retained: merge events are still reported
+  # RETIRED — and now literally so. The note that stood here said these were kept
+  # because reconstruct_at() still called the retired derive_domain() for its
+  # D_max/in-domain bookkeeping. That stopped being true when the voxel grid's padding
+  # was taken off rho_max: NO live code path reads any of the six keys below. The only
+  # function that would is footprint.domain.derive_domain, reachable solely from
+  # api._retired_build_footprint_body, which has zero callers because build_footprint()
+  # raises before reaching it.
+  #
+  # They stay in the file for two non-deciding reasons, both checkable:
+  #   * footprint.params.REQUIRED_CONFIG_KEYS still validates them at stage start, so
+  #     deleting them would BLOCK every run rather than quietly change one;
+  #   * FootprintParams.as_dict() echoes them into every run's provenance record, so a
+  #     run stays readable against the configuration that produced it.
+  # None of them appears in FROZEN_ASSERTIONS any more: pinning a value that governs
+  # nothing would assert a guarantee the code no longer provides.
+  post_merge_factor: 1.25             # RETIRED
+  rho_min_A: 5.0                      # RETIRED
+  hard_ceiling_A: 25.0                # RETIRED
+  dmax_fraction_cap: 0.25             # RETIRED
+  post_merge_factor_caps_rho_max: false   # RETIRED
+  bound_below_by_r_hot: false         # RETIRED
+  step_fp_A: 0.5                      # FROZEN — the upward-rounding grid for r_contain
+
+# --- DECISION-RFP-CONTAINMENT-0001 — the r_fp rule, stated as constants ----------
+footprint_rule:
+  selector: containment               # the ONLY thing that determines r_fp
+  distance_metric: euclidean          # part of r_contain's DEFINITION, not a weight
+  uses_blb: false                     # B/LB enters no step
+  geometric_metrics_decide: false     # computed and reported; never selecting
+  detection_scale_flag_A: 7.0         # flag below this; the radius is never raised
+  coverage_escalation_only: true      # coverage > QC_F1 escalates; never shrinks r_fp
 
 # --- II.10 — footprint QC and selection -------------------------------------
 footprint_qc:

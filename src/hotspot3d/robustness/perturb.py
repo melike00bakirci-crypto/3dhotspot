@@ -72,6 +72,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
+import numpy as np
+
 from ..footprint.api import (CenterSet, Universe, reconstruct_at)
 from ..footprint.params import FootprintParams
 from ..utils.errors import BlockedError
@@ -105,11 +107,61 @@ class IterationResult:
         return self.status != STATUS_OK
 
 
+CONTAINMENT_DIAGNOSTIC_FIELDS = ["robustness_r_contain",
+                                 "robustness_r_fp_would_be",
+                                 "robustness_r_contain_binding_residue"]
+
+
+def containment_diagnostic(evidence_residues: tuple[int, ...], universe: Universe,
+                           iter_centers: CenterSet, step_fp_A: float) -> dict:
+    """What ``r_contain`` would have been on this iteration's center set.
+
+    [DECISION-RFP-CONTAINMENT-0001] Purely diagnostic, and it must stay that way:
+    DECISION-STAGE-D-FIXED-RFP-0001 holds the radius at Stage C's ``r_fp`` for every
+    iteration, so this number is reported and never reconstructed at.
+
+    The evidence set is the FROZEN one from Stage C — the same residues, re-measured
+    against the surviving centers. Re-deriving membership here would need ``r_hot``
+    and would conflate two different effects: residues leaving the evidence set, and
+    the surviving ones getting further from a center. Only the second is what losing a
+    center does to the radius, so only the second is measured.
+
+    Removing centers can only increase a nearest-center distance, so
+    ``r_contain_iter >= r_contain_original`` always. The gap is how much the radius
+    would have grown — a direct read on how much of ``r_fp`` rests on one center.
+    """
+    import math
+
+    if not evidence_residues or len(iter_centers) == 0:
+        return {"robustness_r_contain": None, "robustness_r_fp_would_be": None,
+                "robustness_r_contain_binding_residue": None}
+
+    row_of = {int(rid): k for k, rid in enumerate(universe.ids)}
+    rows = [row_of[int(r)] for r in evidence_residues if int(r) in row_of]
+    if not rows:
+        return {"robustness_r_contain": None, "robustness_r_fp_would_be": None,
+                "robustness_r_contain_binding_residue": None}
+
+    uc = np.asarray(universe.coords, dtype=np.float64)[rows]
+    cc = np.atleast_2d(np.asarray(iter_centers.coords, dtype=np.float64))
+    dmin = np.linalg.norm(uc[:, None, :] - cc[None, :, :], axis=-1).min(axis=1)
+    worst = int(dmin.argmax())
+    exact = float(dmin[worst])
+    step = float(step_fp_A)
+    return {
+        "robustness_r_contain": round(exact, 6),
+        "robustness_r_fp_would_be": round(math.ceil(exact / step - 1e-9) * step, 6),
+        "robustness_r_contain_binding_residue": int(
+            [r for r in evidence_residues if int(r) in row_of][worst]),
+    }
+
+
 def run_iteration(index: int, removed: tuple[int, ...], enumeration_mode: str,
                   seed_context: str, *, centers: CenterSet, universe: Universe,
                   params: FootprintParams, original_state, original_residues:
                   frozenset, r_fp_original: float, plp: frozenset, blb: frozenset,
-                  r_hot_value: float, undefined_mcc: float) -> IterationResult:
+                  r_hot_value: float, undefined_mcc: float,
+                  evidence_residues: tuple[int, ...] = ()) -> IterationResult:
     t0 = time.perf_counter()
     iter_centers = centers.without(removed)
 
@@ -126,6 +178,10 @@ def run_iteration(index: int, removed: tuple[int, ...], enumeration_mode: str,
     # --- the center-loss family that does not depend on reconstruction -----
     row.update(classify.hotspot_coverage_family(
         iter_centers, universe, r_hot_value, plp, blb, undefined_mcc))
+
+    # --- diagnostic only: the radius this iteration would have determined ---
+    row.update(containment_diagnostic(evidence_residues, universe, iter_centers,
+                                      params.step_fp_A))
 
     # --- the sole reconstruction: fixed at the frozen Stage C r_fp ----------
     status, reason = STATUS_OK, "NA"

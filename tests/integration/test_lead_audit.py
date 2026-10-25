@@ -438,7 +438,8 @@ def test_manifest_expected_files_match_output_contract():
                               "significant_hotspot_centers.tsv",
                               "hotspot_classified_variants.tsv",
                               "hotspot_covered_residues.tsv"},
-        "07_FOOTPRINT_RADIUS": {"r_fp_scan.tsv"},
+        "07_FOOTPRINT_RADIUS": {"evidence_set.tsv", "sensitivity_band.tsv",
+                                "footprint_descriptors.tsv"},
         "09_ROBUSTNESS": {"perturbation_results.tsv", "robustness_profile.json"},
         "10_ANNOTATION": {"hotspot_annotation.tsv", "functional_mechanism_variants.tsv"},
     }

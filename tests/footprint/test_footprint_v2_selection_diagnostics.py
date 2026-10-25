@@ -15,12 +15,25 @@ import pytest
 
 from synthetic_footprint import lattice
 
-from hotspot3d.footprint.api import CenterSet, Universe, build_footprint
+from hotspot3d.footprint.api import (CenterSet, Universe,
+                                     build_footprint_contained)
+from hotspot3d.footprint.inputs import EvidenceRecord, EvidenceSet
 from hotspot3d.footprint.qc import QC_F1, QC_F2, QC_F3, QCVerdict
 from hotspot3d.footprint.selection import SelectionDiagnostics, diagnose_selection
 from hotspot3d.utils.multiobjective import Candidate, select
 
 pytestmark = pytest.mark.unit
+
+
+def _contained(centers, universe, params, binding_distance_A):
+    """A contained solution whose ``r_fp`` is pinned by one evidence residue."""
+    evidence = EvidenceSet(
+        records=(EvidenceRecord(residue_id=int(universe.ids[0]),
+                                nearest_center_id=int(centers.ids[0]),
+                                distance_A=float(binding_distance_A),
+                                in_evidence=True),),
+        n_plp_mapped=1)
+    return build_footprint_contained(centers, universe, params, evidence)
 
 OBJECTIVES = ("compactness", "connectivity", "stability", "parsimony")
 TIE_CHAIN = ("distance", "stability", "compactness", "smaller_radius")
@@ -59,28 +72,35 @@ def _sublattice_run(n_side, spacing, every=2):
     return centers, Universe(ids=tuple(ids), coords=coords)
 
 
-def test_geometrically_inadmissible_candidates_never_strike_the_footprint(params):
-    """v2 §7: several QC_F1/F2/F3-inadmissible radii coexist with a found footprint.
+def test_geometric_admissibility_never_strikes_a_center(params):
+    """v2 §7, under containment: QC judges the radius, never the center set.
 
-    SIGNIFICANT_HOTSPOT_CENTERS is untouched by admissibility (it is not a
-    significance concept at all for r_fp) and a footprint is still selected —
-    partial QC_F failure is never treated as 'no footprint found'.
+    The retired version asserted that inadmissible radii coexist with a found
+    footprint — a statement about a sweep. [DECISION-RFP-CONTAINMENT-0001] evaluates
+    one radius, so the mix now comes from two solutions. What still needs pinning is
+    the part that was never about the sweep: SIGNIFICANT_HOTSPOT_CENTERS is frozen
+    upstream and geometric admissibility is not a significance concept, so a QC
+    failure must leave the center set and the determination record intact rather than
+    quietly dropping centers until the radius passes.
     """
-    # [DECISION-FOOTPRINT-DOMAIN-0001] spacing widened 4.0 -> 5.5 (the lattice
-    # helper's own default). At the new 5.0 A floor the old 16 A cube had EVERY
-    # radius over QC_F1's 0.50, so the mix this test needs no longer existed.
-    # Now: domain [5.0, 11.9], coverage 0.125 at the floor, crossing 0.50 at
-    # r = 8.0 -> 6 admissible, 9 inadmissible.
     centers, universe = _sublattice_run(6, 5.5)
     n_centers_before = len(centers)
+    ids_before = centers.ids
 
-    solution = build_footprint(centers, universe, params)
+    failing = _contained(centers, universe, params, 14.0)
+    passing = _contained(centers, universe, params, 3.0)
 
-    inadmissible = [v for v in solution.verdicts.values() if not v.admissible]
-    admissible = [v for v in solution.verdicts.values() if v.admissible]
-    assert inadmissible and admissible, "fixture must produce a genuine mix"
-    assert solution.r_fp is not None, "a footprint must still be selected"
-    assert len(centers) == n_centers_before, "centers are never struck by admissibility"
+    assert not all(v.admissible for v in failing.verdicts.values()), (
+        "fixture must produce a genuine QC failure")
+    assert all(v.admissible for v in passing.verdicts.values()), (
+        "fixture must produce a genuine QC pass")
+    assert passing.r_fp is not None, "an admissible radius is still selected"
+
+    for solution in (failing, passing):
+        assert len(centers) == n_centers_before
+        assert centers.ids == ids_before, "centers are never struck by admissibility"
+        # the determination survives rejection: it is upstream of QC
+        assert solution.containment["r_contain_A"] == solution.domain.grid[0]
 
 
 # --- degenerate objectives ----------------------------------------------------
@@ -205,16 +225,38 @@ def test_admissibility_dominates_is_silent_at_or_below_the_threshold(params):
 
 # --- wired into footprint_decision.json ----------------------------------------
 
-def test_diagnostics_are_wired_into_footprint_decision_json(phase_c_run):
+def test_footprint_decision_json_describes_the_rule_actually_in_force(phase_c_run):
+    """[DECISION-RFP-CONTAINMENT-0001] The v2 degeneracy diagnostics had no subject.
+
+    They reported which objectives were identical across the admissible set and were
+    therefore excluded from distance-to-utopia. With no candidate set there are no
+    objectives, no distance and nothing to exclude. Two of the old keys were worse
+    than vacuous — `r_hot_used_in_selection: false` and `r_fp_bounded_by_r_hot: false`
+    stated the inverse of the rule — so this test now pins both halves: the
+    determination is described, and the retired claims are gone rather than restated.
+    """
     ctx, _, result = phase_c_run
     payload = json.loads((ctx.full_results / "07_FOOTPRINT_RADIUS"
                          / "footprint_decision.json").read_text())
-    for key in ("effective_objectives_in_distance",
-               "degenerate_objectives_excluded_from_distance",
-               "degenerate_exclusion_is_numerically_neutral",
-               "VACUOUS_PARETO_SELECTION", "vacuous_pareto_reason",
-               "ADMISSIBILITY_DOMINATES_SELECTION", "inadmissible_fraction",
-               "inadmissible_by_rule", "significance_may_determine_admissibility"):
+
+    for key in ("rule", "determination_procedure", "selection_performed",
+                "r_contain_exact_A", "r_contain_A", "grid_slack_A", "rounding",
+                "binding_residue", "binding_residue_is_outlier",
+                "n_evidence_set", "n_plp_outside_evidence",
+                "r_hot_defines_the_evidence_set", "r_fp_bounded_above_by_r_hot",
+                "blb_used_in_determination", "coverage_escalation_only",
+                "significance_may_determine_admissibility"):
         assert key in payload, key
+
     assert payload["significance_may_determine_admissibility"] is False
-    assert payload["degenerate_exclusion_is_numerically_neutral"] is True
+    assert payload["selected_r_fp_A"] == pytest.approx(result.r_fp)
+
+    for retired in ("objectives", "utopia_point", "distance_to_ideal",
+                    "n_pareto_members", "tie_chain_applied", "near_tie_flag",
+                    "degenerate_objectives", "effective_objectives_in_distance",
+                    "VACUOUS_PARETO_SELECTION", "ADMISSIBILITY_DOMINATES_SELECTION",
+                    "f10_statement", "r_hot_used_in_selection",
+                    "r_fp_bounded_by_r_hot"):
+        assert retired not in payload, (
+            f"{retired} describes the retired search; leaving it in a file named "
+            f"'decision' is how a reader gets told the wrong rule")

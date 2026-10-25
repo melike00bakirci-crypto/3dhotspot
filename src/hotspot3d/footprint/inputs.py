@@ -54,6 +54,41 @@ _CLASS_MAP = {
 }
 
 
+@dataclass(frozen=True)
+class EvidenceRecord:
+    """One mapped P/LP residue, with the verdict ``r_hot`` produced about it.
+
+    ``in_evidence`` is the ONLY thing derived from ``r_hot``'s numeric value. The
+    value itself is not carried here and cannot be recovered from these fields.
+    """
+
+    residue_id: int
+    nearest_center_id: int
+    distance_A: float
+    in_evidence: bool
+
+
+@dataclass(frozen=True)
+class EvidenceSet:
+    """Every mapped P/LP residue with its nearest-center distance and verdict.
+
+    Deliberately holds no radius. ``r_contain`` is computed from ``records`` by
+    ``footprint.domain``, which never receives ``r_hot``
+    (DECISION-RFP-CONTAINMENT-0001).
+    """
+
+    records: tuple[EvidenceRecord, ...]
+    n_plp_mapped: int
+
+    @property
+    def evidence(self) -> tuple[EvidenceRecord, ...]:
+        return tuple(r for r in self.records if r.in_evidence)
+
+    @property
+    def outside(self) -> tuple[EvidenceRecord, ...]:
+        return tuple(r for r in self.records if not r.in_evidence)
+
+
 class ReadOnlyHotspotRadius:
     """``r_hot`` as recorded context that cannot leak into the ``r_fp`` decision.
 
@@ -92,6 +127,44 @@ class ReadOnlyHotspotRadius:
     __mul__ = _blocked
     __truediv__ = _blocked
 
+    def derive_evidence_set(self, *, centers, universe,
+                            cohort_plp) -> "EvidenceSet":
+        """The second — and last — sanctioned use (DECISION-RFP-CONTAINMENT-0001).
+
+        Returns, for every P/LP residue that maps into ``U_struct``, its nearest
+        significant center and the distance to it, plus the boolean verdict
+        ``distance <= r_hot``. That boolean is the only thing this method derives
+        from ``self._value``; **the numeric radius never leaves this method.**
+
+        ``r_contain`` is deliberately NOT computed here. It is the caller's job, in
+        ``footprint.domain``, so that module keeps its original guarantee: ``r_hot``
+        is not an argument to any function in it.
+
+        Nothing else in the codebase may call this method — enforced by an AST audit
+        in ``tests/footprint/test_evidence_set_exemption.py``.
+        """
+        import numpy as _np
+
+        uc = _np.asarray(universe.coords, dtype=_np.float64)
+        cc = _np.atleast_2d(_np.asarray(centers.coords, dtype=_np.float64))
+        delta = _np.linalg.norm(uc[:, None, :] - cc[None, :, :], axis=-1)
+        nearest = delta.argmin(axis=1)
+        dmin = delta.min(axis=1)
+
+        row_of = {int(rid): k for k, rid in enumerate(universe.ids)}
+        records = []
+        for rid in sorted(int(i) for i in cohort_plp):
+            k = row_of.get(rid)
+            if k is None:
+                continue                      # not mapped to a usable CA
+            records.append(EvidenceRecord(
+                residue_id=rid,
+                nearest_center_id=int(centers.ids[int(nearest[k])]),
+                distance_A=float(dmin[k]),
+                in_evidence=bool(dmin[k] <= self._value),
+            ))
+        return EvidenceSet(records=tuple(records), n_plp_mapped=len(records))
+
     def __repr__(self) -> str:
         return f"ReadOnlyHotspotRadius(recorded={self._value!r})"
 
@@ -105,6 +178,10 @@ class UpstreamInputs:
     cohort_plp: frozenset
     cohort_blb: frozenset
     r_hot: ReadOnlyHotspotRadius
+    evidence: EvidenceSet
+    r_hot_runner_up: ReadOnlyHotspotRadius | None
+    evidence_runner_up: "EvidenceSet | None"
+    r_hot_runner_up_margin_rel: float | None
     paths: dict[str, Path]
     hashes: dict[str, str]
     n_significant_centers: int
@@ -176,10 +253,36 @@ def load(ctx: RunContext, upstream: Handoff) -> UpstreamInputs:
     centers, regions, carries = _load_centers(paths, universe, coord_by_id)
     plp, blb = _load_cohort(paths, universe)
 
+    r_hot = ReadOnlyHotspotRadius(upstream.payload["hotspot_radius"])
+
+    # [DECISION-RFP-CONTAINMENT-0001] The sanctioned call site. `load` is the only
+    # function anywhere that may invoke derive_evidence_set; an AST audit enforces it.
+    evidence = r_hot.derive_evidence_set(centers=centers, universe=universe,
+                                        cohort_plp=plp)
+
+    # Runner-up r_hot and its relative margin, written unconditionally by Stage B so
+    # Stage C can report how close the radius that defines the evidence set was to
+    # being a different number. Reporting only: neither value enters any decision.
+    runner = upstream.payload.get("r_hot_runner_up_A")
+    runner_margin = upstream.payload.get("r_hot_runner_up_margin_rel")
+
+    # The runner-up's evidence set is derived HERE too, for the same reason: the
+    # exemption stays inside this function. Stage C reports r_contain at the runner-up
+    # (weakness 1 of the decision record) and must be able to do so without calling
+    # the exempted method itself, which would spread the exemption to a second module.
+    r_hot_runner_up = ReadOnlyHotspotRadius(runner) if runner is not None else None
+    evidence_runner_up = (
+        r_hot_runner_up.derive_evidence_set(
+            centers=centers, universe=universe, cohort_plp=plp)
+        if r_hot_runner_up is not None else None)
+
     return UpstreamInputs(
         centers=centers, universe=universe, center_regions=regions,
         center_carries_variant=carries, cohort_plp=plp, cohort_blb=blb,
-        r_hot=ReadOnlyHotspotRadius(upstream.payload["hotspot_radius"]),
+        r_hot=r_hot, evidence=evidence,
+        r_hot_runner_up=r_hot_runner_up, evidence_runner_up=evidence_runner_up,
+        r_hot_runner_up_margin_rel=(float(runner_margin)
+                                    if runner_margin is not None else None),
         paths=paths, hashes=hashes, n_significant_centers=n_centers,
         residue_names=residue_names,
     )

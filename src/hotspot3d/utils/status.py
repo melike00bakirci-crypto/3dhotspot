@@ -93,6 +93,13 @@ WARNING_CODES: dict[str, Severity] = {
     "BOUNDARY_OPTIMUM_WARNING": Severity.MAJOR,
     "EXCESSIVE_FOOTPRINT_COVERAGE": Severity.ADVISORY,
     "FOOTPRINT_COVERAGE_CONSTRAINT_FAILURE": Severity.BLOCKING,
+    # --- DECISION-RFP-CONTAINMENT-0001 — pre-registered here, as the enum requires.
+    # All four are ADVISORY by construction: the decision forbids any of them from
+    # moving the radius, so none can invalidate the result it annotates.
+    "DETECTION_SCALE_BELOW_3D_RESOLUTION": Severity.ADVISORY,
+    "CONTAINMENT_BINDING_RESIDUE_IS_OUTLIER": Severity.ADVISORY,
+    "PLP_OUTSIDE_EVIDENCE_SET": Severity.ADVISORY,
+    "R_FP_INHERITS_R_HOT_NEAR_TIE": Severity.ADVISORY,
     "GLOBAL_CLUSTERING_NON_SIGNIFICANT": Severity.MAJOR,
     "NO_SIGNIFICANT_HOTSPOTS": Severity.MAJOR,
     "RESIDUE_CLASS_CONFLICT": Severity.ADVISORY,

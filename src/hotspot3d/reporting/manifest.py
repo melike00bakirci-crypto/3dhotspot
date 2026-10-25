@@ -78,16 +78,21 @@ EXPECTED: dict[str, list[tuple[str, str, str]]] = {
         ("handoff_02.json", "PRIMARY", "B -> C handoff"),
         ("stage_b_report.md", "PRIMARY", "Stage B narrative report"),
     ],
+    # [DECISION-RFP-CONTAINMENT-0001] The decision trace is now the evidence set and
+    # the sensitivity band. Gone with the search: the objective matrix, the Pareto
+    # front and its dominated companion, and the domain-boundary diagnostic (a
+    # determined radius has no domain edge to sit near).
     "07_FOOTPRINT_RADIUS": [
-        ("r_fp_scan.tsv", "PRIMARY", "footprint decision trace"),
-        ("footprint_domain.json", "PRIMARY", "MST merge scales and domain"),
+        ("evidence_set.tsv", "PRIMARY", "THE decision trace: every mapped P/LP, its "
+                                        "nearest center, the containment verdict"),
+        ("sensitivity_band.tsv", "PRIMARY", "the footprint across the plausible "
+                                            "r_hot range, determined row marked"),
+        ("footprint_descriptors.tsv", "PRIMARY", "geometric descriptors of the "
+                                                 "determined radius"),
+        ("footprint_domain.json", "PRIMARY", "containment record and MST merge scales"),
         ("footprint_admissibility.tsv", "PRIMARY", "QC verdict per candidate"),
         ("merge_events.tsv", "SECONDARY", "component merge events"),
-        ("footprint_objective_matrix.json", "PRIMARY", "objectives + correlation"),
-        ("footprint_pareto.json", "PRIMARY", "non-dominated candidates"),
-        ("footprint_pareto_dominated.json", "SECONDARY", "dominated with dominators"),
-        ("footprint_decision.json", "PRIMARY", "selection trace"),
-        ("footprint_domain_boundary_diagnostic.json", "PRIMARY", "BW-1/2/3 evaluation"),
+        ("footprint_decision.json", "PRIMARY", "the determination record"),
     ],
     "08_FINAL_FOOTPRINT": [
         ("footprint_residues.tsv", "PRIMARY", "FP_original residues"),
@@ -142,7 +147,8 @@ EXPECTED: dict[str, list[tuple[str, str, str]]] = {
 }
 
 REVIEW_PACK_MEMBERS = {
-    "r_hot_scan.tsv", "r_fp_scan.tsv", "significant_hotspot_centers.tsv",
+    "r_hot_scan.tsv", "footprint_descriptors.tsv", "evidence_set.tsv",
+    "sensitivity_band.tsv", "significant_hotspot_centers.tsv",
     "hotspot_regions.tsv", "footprint_residues.tsv", "robustness_profile.json",
     "hotspot_annotation.tsv",
 }

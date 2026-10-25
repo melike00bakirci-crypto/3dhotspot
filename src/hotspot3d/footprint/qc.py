@@ -1,7 +1,7 @@
 """II.10 — footprint QC and admissibility.
 
 Constraints, not objectives. An inadmissible candidate keeps **all** of its
-computed metrics plus a rejection reason and stays in ``r_fp_scan.tsv``: the
+computed metrics plus a rejection reason and stays in ``footprint_descriptors.tsv``: the
 decision trace has to show what was rejected and why, not just what won.
 
 QC-F1's 0.50 threshold is never relaxed and its denominator is always

@@ -17,6 +17,13 @@ the fallback rule all come from :func:`hotspot3d.footprint.sweep.build_sweep_gri
 — the very function the sweep called — and the occupancy is the rho-sublevel set
 of the same single distance transform. A second grid builder here would be a
 duplicate scientific implementation and the two could drift apart silently.
+
+[DECISION-RFP-CONTAINMENT-0001] That reuse only delivered byte-identity once the
+padding stopped coming from the retired search domain. While it did, this module
+rebuilt `[5.0, min(0.25*D_max, 25.0)]` and padded with its ceiling, whereas the run
+had padded with the radius it was evaluating — so the regenerated lattice was offset
+from the run's and the regenerated grid was not, in fact, the run's grid. Both now
+pad with `radius + bbox_padding_A`.
 """
 from __future__ import annotations
 
@@ -29,7 +36,6 @@ import numpy as np
 from ..utils.config import load_config
 from ..utils.errors import BlockedError
 from ..utils.io import read_tsv, read_tsv_columns
-from .domain import derive_domain
 from .grid import GridSpec, distance_field, occupancy_at
 from .params import FootprintParams
 from .sweep import build_sweep_grid
@@ -109,18 +115,23 @@ def regenerate(centers_path: Path, coords_path: Path, radius: float,
         # exactly as configured, so the geometry is still the sweep's geometry.
         params = replace_voxel_h(params, float(voxel_h))
 
-    coord_by_id, universe_coords = load_coordinates(coords_path, universe_path)
+    # `--universe` is still read and validated, but it only ever reached the grid
+    # through the retired domain's D_max. The geometry is (centers, radius, h).
+    coord_by_id, _universe_coords = load_coordinates(coords_path, universe_path)
     center_ids, center_coords = load_centers(centers_path, coord_by_id)
 
-    domain = derive_domain(center_coords, universe_coords, params)
-    if not domain.rho_min - 1e-9 <= float(radius) <= domain.rho_max + 1e-9:
-        raise BlockedError(
-            f"radius {radius} lies outside the derived II.9 domain "
-            f"[{domain.rho_min}, {domain.rho_max}]. The domain is never widened to "
-            f"accommodate a regeneration request."
-        )
+    # [DECISION-RFP-CONTAINMENT-0001] There is no search domain to validate the
+    # request against, and the retired one must not be resurrected to do it. The
+    # old check rebuilt `[5.0, min(0.25*D_max, 25.0)]` and refused anything outside
+    # it; under containment the radii a reader legitimately wants back are the
+    # sensitivity band's (resolution floor up to r_hot, plus r_fp itself), and r_fp
+    # is free to fall below the retired floor. Worse, the retired ceiling was also
+    # the grid's padding, so a regenerated grid was NOT the grid the run used —
+    # which is the one thing this module exists to guarantee.
+    if not float(radius) > 0.0 or not np.isfinite(float(radius)):
+        raise BlockedError(f"radius must be a positive finite number, got {radius!r}")
 
-    spec = build_sweep_grid(center_coords, domain, params)      # THE grid builder
+    spec = build_sweep_grid(center_coords, float(radius), params)   # THE grid builder
     occupancy = occupancy_at(distance_field(spec, center_coords), float(radius))
     return spec, occupancy, center_ids
 

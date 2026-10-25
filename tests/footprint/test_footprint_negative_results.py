@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from synthetic_footprint import synthetic_run
+from synthetic_footprint import lattice, residues_beyond, synthetic_run
 
 from hotspot3d.footprint.stage import run_stage_cd
 from hotspot3d.utils.io import read_tsv
@@ -13,14 +13,32 @@ from hotspot3d.utils.io import read_tsv
 pytestmark = pytest.mark.unit
 
 
-def test_empty_domain_terminates_the_chain_honestly(tmp_path):
-    """rho_min > rho_max: no footprint exists and nothing is relaxed to invent one."""
-    # two adjacent lattice points 2.0 A apart -> rho_all = 1.0 -> rho_max = 1.25
-    ctx, upstream = synthetic_run(tmp_path, n_side=6, spacing=2.0,
-                                  center_ids=[1, 2], n_plp=20, n_blb=20)
+NEGATIVE = "NO_EVIDENCE_SET"
+
+
+def _no_evidence_run(tmp_path):
+    """The containment-era negative: an evidence set with no members.
+
+    [DECISION-RFP-CONTAINMENT-0001] The retired trigger was an empty search domain
+    (`rho_min > rho_max`). Containment has no search and, by L2, `r_fp <= r_hot`
+    always, so the domain is never empty — the one thing that can leave `r_contain`
+    undefined is no P/LP residue lying within `r_hot` of any center. L1 says a
+    significant center cannot be P/LP-empty, so this is the lemma's own guard, and a
+    test must state the cohort to reach it.
+    """
+    ids, coords = lattice(6, 2.0)
+    centers = [1, 2]
+    far = residues_beyond(ids, coords, centers, radius_A=8.0, k=20)
+    return synthetic_run(tmp_path, n_side=6, spacing=2.0, center_ids=centers,
+                         plp_ids=far[:10], blb_ids=far[10:])
+
+
+def test_an_empty_evidence_set_terminates_the_chain_honestly(tmp_path):
+    """No footprint exists and nothing is relaxed to invent one."""
+    ctx, upstream = _no_evidence_run(tmp_path)
     handoff_03, handoff_04 = run_stage_cd(ctx, upstream=upstream)
 
-    assert handoff_03.negative_result["condition"] == "NO_ADMISSIBLE_FOOTPRINT_DOMAIN"
+    assert handoff_03.negative_result["condition"] == NEGATIVE
     assert handoff_03.payload["footprint_radius"] is None
     assert handoff_03.payload["hotspot_radius"] == 8.0      # passthrough survives
     assert handoff_03.qc_status != "FAIL", "a negative is not a QC failure"
@@ -37,11 +55,11 @@ def test_empty_domain_terminates_the_chain_honestly(tmp_path):
         (ctx.full_results / "09_ROBUSTNESS" / "stage_status.json").read_text())
     assert status_09["status"] == "NOT_RUN"
     assert status_09["outcome_type"] == "NOT_APPLICABLE"
-    assert "NO_ADMISSIBLE_FOOTPRINT_DOMAIN" in status_09["reason"]
+    assert NEGATIVE in status_09["reason"]
 
     profile = handoff_04.payload["robustness_profile"]
     assert profile["evaluable"] is False
-    assert profile["upstream_condition"] == "NO_ADMISSIBLE_FOOTPRINT_DOMAIN"
+    assert profile["upstream_condition"] == NEGATIVE
 
     report = (ctx.full_results / "08_FINAL_FOOTPRINT" / "stage_c_report.md").read_text()
     assert "TRUE SCIENTIFIC NEGATIVE" in report
@@ -49,8 +67,7 @@ def test_empty_domain_terminates_the_chain_honestly(tmp_path):
 
 
 def test_negative_stage_still_writes_its_manifests_and_warnings(tmp_path):
-    ctx, upstream = synthetic_run(tmp_path, n_side=6, spacing=2.0,
-                                  center_ids=[1, 2], n_plp=20, n_blb=20)
+    ctx, upstream = _no_evidence_run(tmp_path)
     run_stage_cd(ctx, upstream=upstream)
 
     for stage in ("07_FOOTPRINT_RADIUS", "08_FINAL_FOOTPRINT"):

@@ -22,16 +22,17 @@ from pathlib import Path
 
 import numpy as np
 
-from ..utils.errors import BlockedError, NegativeResult
+from ..utils.errors import BlockedError
 from ..utils.hashing import code_version, sha256_bytes
 from ..utils.multiobjective import SelectionResult
 from . import qc as qc_mod
 from . import selection as sel
-from .domain import FootprintDomain, derive_domain
-from .grid import GridSpec, distance_field, make_grid, occupancy_at, seed_indices
+from .domain import (FootprintDomain, derive_containment_domain, derive_domain)
+from .grid import GridSpec, distance_field, occupancy_at, seed_indices
 from .params import FootprintParams
 from .qc import QCVerdict
-from .sweep import RadiusState, SweepResult, evaluate_radius, run_sweep
+from .sweep import (RadiusState, SweepResult, build_sweep_grid,
+                    evaluate_radius, run_sweep)
 
 #: Bumped only by a pre-registered methodological revision.
 FOOTPRINT_API_VERSION = "1.0.0"
@@ -108,6 +109,9 @@ class FootprintSolution:
     excessive_coverage_fraction: float
     coverage_constraint_failure: bool
     n_admissible: int
+    #: [DECISION-RFP-CONTAINMENT-0001] the containment record; None on the retired
+    #: search path, which is now guarded shut.
+    containment: dict | None = None
 
     # -- derived, decision-bearing views ------------------------------------
     def covered_residue_ids(self, universe: Universe) -> tuple[int, ...]:
@@ -157,7 +161,11 @@ class FixedReconstruction:
     spec: GridSpec
     dist: np.ndarray
     state: RadiusState
-    inside_iteration_domain: bool
+
+
+#: DECISION-RFP-CONTAINMENT-0001 — reported as a flag, never used to raise
+#: the radius.
+DETECTION_SCALE_FLOOR_A = 7.0
 
 
 def build_footprint(centers: CenterSet, universe: Universe,
@@ -168,6 +176,20 @@ def build_footprint(centers: CenterSet, universe: Universe,
     solution with ``r_fp = None`` when the domain is non-empty but no candidate is
     admissible. Both are scientific outcomes, not exceptions in the ordinary sense.
     """
+    raise BlockedError(
+        "DECISION-RFP-CONTAINMENT-0001 retired the independent r_fp search. "
+        "build_footprint() performed domain derivation, a multi-scale sweep, QC "
+        "filtering and Pareto/distance-to-utopia selection; r_fp is now DETERMINED "
+        "by containment and there is nothing to select. Use "
+        "build_footprint_contained(centers, universe, params, evidence). This "
+        "function is kept, and kept failing, so that a caller which still expects a "
+        "search gets told rather than silently handed a one-candidate result."
+    )
+
+
+def _retired_build_footprint_body(centers: CenterSet, universe: Universe,
+                                  params: FootprintParams) -> FootprintSolution:
+    """Unreachable. Retained verbatim as the record of the retired procedure."""
     if len(centers) == 0:
         raise BlockedError("build_footprint called with an empty center set")
 
@@ -211,34 +233,100 @@ def build_footprint(centers: CenterSet, universe: Universe,
     )
 
 
+def build_footprint_contained(centers: CenterSet, universe: Universe,
+                              params: FootprintParams,
+                              evidence) -> FootprintSolution:
+    """DECISION-RFP-CONTAINMENT-0001 — the whole of Stage C's radius determination.
+
+    The domain has exactly one member, so the sweep evaluates one radius, QC judges
+    one candidate and the selection is trivial. Every downstream export keeps its
+    existing shape: the geometric descriptors are computed and reported, and they
+    decide nothing because there is no alternative to prefer.
+
+    ``evidence`` is an ``EvidenceSet``; no radius is passed in and ``r_hot`` is not
+    an argument here or in ``footprint.domain``.
+    """
+    if len(centers) == 0:
+        raise BlockedError(
+            "build_footprint_contained called with an empty center set")
+
+    domain, record = derive_containment_domain(centers.coords, universe.coords,
+                                               evidence, params)
+    sweep = run_sweep(centers.coords, universe.coords, domain, params)
+
+    if sweep.monotonicity_violations:
+        raise BlockedError(
+            f"MONOTONICITY VIOLATION on a one-point domain: "
+            f"{sweep.monotonicity_violations[:3]}. With a single radius there is "
+            f"nothing to be non-monotone against; this is a computational fault."
+        )
+
+    verdicts = {row.rho: qc_mod.evaluate(row, params, domain) for row in sweep.rows}
+    constraint_failed, excessive_fraction = qc_mod.coverage_constraint_failure(
+        list(verdicts.values()), params)
+
+    candidates = sel.build_candidates(sweep.rows, verdicts)
+    result = sel.run_selection(candidates, params, domain.step)
+
+    selected_state = None
+    if result.selected_key is not None:
+        selected_state = sweep.by_rho()[result.selected_key]
+        qc_mod.assert_qc_f4(selected_state.rho, domain)
+        qc_mod.assert_qc_f5(selected_state, np.asarray(centers.universe_rows,
+                                                       dtype=np.int64))
+
+    # The coverage rule never shrinks the radius: L3 would break. When it fires the
+    # run escalates and completes with warnings, carrying the radius it computed.
+    record["coverage_escalated"] = bool(constraint_failed)
+    record["detection_scale_below_resolution"] = bool(
+        record["r_contain_exact_A"] < DETECTION_SCALE_FLOOR_A)
+
+    return FootprintSolution(
+        domain=domain, sweep=sweep, verdicts=verdicts, selection=result,
+        boundary={}, spec=sweep.spec,
+        r_fp=result.selected_key, selected=selected_state,
+        excessive_coverage_fraction=excessive_fraction,
+        coverage_constraint_failure=constraint_failed,
+        n_admissible=result.n_admissible,
+        containment=record,
+    )
+
+
 def reconstruct_at(centers: CenterSet, universe: Universe, params: FootprintParams,
                    rho: float) -> FixedReconstruction:
     """Rebuild the footprint at an externally supplied radius (no selection).
 
     The radius is an input, so QC-F4 is *reported* rather than asserted: the whole
     purpose of the secondary reconstruction is to hold the radius fixed at the
-    original ``r_fp`` even when the iteration's own domain would not have offered it.
+    original ``r_fp``. Under DECISION-RFP-CONTAINMENT-0001 that radius is the
+    containment minimum of the UNPERTURBED center set, held fixed across iterations
+    exactly as DECISION-STAGE-D-FIXED-RFP-0001 requires.
     """
     if len(centers) == 0:
         raise BlockedError("reconstruct_at called with an empty center set")
 
-    try:
-        domain = derive_domain(centers.coords, universe.coords, params)
-        inside = bool(domain.rho_min - 1e-9 <= rho <= domain.rho_max + 1e-9)
-        pad_radius = max(domain.rho_max, float(rho))
-    except NegativeResult:                  # empty domain -> still reconstructable
-        inside = False
-        pad_radius = float(rho)
-
-    spec = make_grid(centers.coords, pad=pad_radius + params.bbox_padding_A,
-                     h=params.voxel_h_A, h_fallback=params.voxel_h_fallback_A,
-                     max_voxels=params.voxel_count_fallback_threshold)
+    # [DECISION-RFP-CONTAINMENT-0001] The grid is sized from rho alone.
+    #
+    # This used to call derive_domain() and pad to max(domain.rho_max, rho). Two
+    # consequences, both measured on archived runs:
+    #
+    #   * the retired 25 A ceiling inflated the box whatever rho was — the voxel
+    #     count ran 3-10x higher than needed (CACNA1A 11.1M vs 3.7M; PTPN11 2.9M vs
+    #     0.3M), and Stage D pays that N_CAP times per gene;
+    #   * worse, it made a radius's MEASURED geometry depend on the domain it sat in.
+    #     PTPN11's volume came out 7915 against 7947 for the same rho. That is the
+    #     defect recorded under "Defect exposed, not caused" in
+    #     DECISION-FOOTPRINT-DOMAIN-0001, and sizing from rho closes it: the box now
+    #     depends only on the centers and the radius actually being evaluated.
+    #
+    # There is no domain under containment, so the former inside_iteration_domain
+    # flag had no question left to answer. Nothing read it; it is gone.
+    spec = build_sweep_grid(centers.coords, float(rho), params)
     dist = distance_field(spec, centers.coords)
     seed_idx = seed_indices(spec, centers.coords)
     state = evaluate_radius(spec, dist, seed_idx, centers.coords, universe.coords,
                             float(rho), params)
-    return FixedReconstruction(rho=float(rho), spec=spec, dist=dist, state=state,
-                               inside_iteration_domain=inside)
+    return FixedReconstruction(rho=float(rho), spec=spec, dist=dist, state=state)
 
 
 def occupancy_on_grid(spec: GridSpec, centers: CenterSet, rho: float) -> np.ndarray:

@@ -2,7 +2,8 @@
 
 Two rules shape this module:
 
-* ``r_fp_scan.tsv`` is the **single decision trace**. Every other tabular artifact
+* ``footprint_descriptors.tsv`` (was ``r_fp_scan.tsv``) carries the geometric
+  descriptors of the determined radius. Every other tabular artifact
   in ``07_FOOTPRINT_RADIUS/`` is a projection of rows that already exist here —
   ``footprint_admissibility.tsv`` is copied verbatim from the scan rows, never
   recomputed (P1). No value is produced twice anywhere in this stage.
@@ -18,21 +19,24 @@ from pathlib import Path
 
 import numpy as np
 
-from ..utils.io import write_json, write_text, write_tsv
+from ..utils.io import SCHEMA_VERSION, write_json, write_text, write_tsv
 from .api import FootprintSolution, Universe
 from .descriptors import surface_area
 from .domain import FootprintDomain
 from .params import FootprintParams
 
+# [DECISION-RFP-CONTAINMENT-0001] Gone with the search: the four *_normalized
+# columns (min-max normalization is defined over an admissible SET), pareto_member
+# (domination is a relation between candidates and there is one), distance_to_ideal
+# (no distance decided anything) and boundary_warning (no domain, no boundary). They
+# are dropped rather than written as NA: NA says the procedure ran and produced
+# nothing, and it did not run.
 R_FP_SCAN_COLUMNS = [
     "r_fp_A", "volume_A3", "surface_area_A2", "n_components", "n_covered_residues",
     "coverage_fraction", "compactness", "convexity", "connectivity",
     "expansion_rate", "n_bridges", "bridging_index", "ari_prev", "ari_next",
     "stability", "parsimony", "n_merge_events", "abrupt_transition",
-    "compactness_normalized", "connectivity_normalized", "stability_normalized",
-    "parsimony_normalized", "qc_status", "qc_failure_reason",
-    "excessive_footprint_coverage", "pareto_member", "distance_to_ideal",
-    "selected", "boundary_warning",
+    "qc_status", "qc_failure_reason", "excessive_footprint_coverage", "selected",
 ]
 
 ADMISSIBILITY_COLUMNS = [
@@ -76,12 +80,10 @@ def _radius_tag(rho: float) -> str:
 
 def build_scan_rows(solution: FootprintSolution) -> list[dict]:
     """THE decision trace. Every candidate, admissible or not, with every metric."""
-    result = solution.selection
-    band = set(solution.boundary.get("band_members", []))
+    selected_key = solution.selection.selected_key
     rows = []
     for state in solution.sweep.rows:
         verdict = solution.verdicts[state.rho]
-        norm = result.normalized.get(state.rho, {})
         rows.append({
             "r_fp_A": state.rho,
             "volume_A3": state.volume,
@@ -101,30 +103,25 @@ def build_scan_rows(solution: FootprintSolution) -> list[dict]:
             "parsimony": state.parsimony,
             "n_merge_events": state.n_merge_events,
             "abrupt_transition": state.abrupt_transition,
-            # NA for inadmissible rows: normalization is defined over the
-            # admissible set only (F15), so a normalized value would be fiction.
-            "compactness_normalized": norm.get("compactness"),
-            "connectivity_normalized": norm.get("connectivity"),
-            "stability_normalized": norm.get("stability"),
-            "parsimony_normalized": norm.get("parsimony"),
             "qc_status": verdict.status,
             "qc_failure_reason": verdict.reason_text,
             "excessive_footprint_coverage": verdict.excessive_coverage,
-            "pareto_member": state.rho in set(result.pareto_members),
-            "distance_to_ideal": result.distances.get(state.rho),
-            "selected": (result.selected_key is not None
-                         and abs(state.rho - result.selected_key) < 1e-9),
-            "boundary_warning": state.rho in band,
+            "selected": (selected_key is not None
+                         and abs(state.rho - selected_key) < 1e-9),
         })
     return rows
 
 
 def write_scan(stage_dir: Path, rows: list[dict]) -> Path:
-    return write_tsv(stage_dir / "r_fp_scan.tsv", rows, R_FP_SCAN_COLUMNS)
+    # [DECISION-RFP-CONTAINMENT-0001] One candidate, so "scan" was a
+    # misnomer. The file keeps every geometric descriptor; it simply no
+    # longer traces a search.
+    return write_tsv(stage_dir / "footprint_descriptors.tsv", rows,
+                     R_FP_SCAN_COLUMNS)
 
 
 def write_admissibility(stage_dir: Path, rows: list[dict]) -> Path:
-    """A verbatim projection of ``r_fp_scan.tsv`` — nothing is computed here (P1)."""
+    """A verbatim projection of ``footprint_descriptors.tsv`` — nothing computed (P1)."""
     projected = [{col: row[col] for col in ADMISSIBILITY_COLUMNS} for row in rows]
     return write_tsv(stage_dir / "footprint_admissibility.tsv", projected,
                      ADMISSIBILITY_COLUMNS)
@@ -229,14 +226,25 @@ def write_domain(stage_dir: Path, solution: FootprintSolution,
         "reason": ("P5 — deterministically regenerable from the center set and the "
                    "radius; per-radius component memberships and metrics, which the "
                    "decision rests on, are retained in full."),
+        # [DECISION-RFP-CONTAINMENT-0001] The pad is `rho`, not `rho_max`. While it
+        # was rho_max this recipe reproduced a DIFFERENT lattice from the one the run
+        # used, because rho_max was the retired 25 A ceiling rather than the radius
+        # being evaluated. Going through build_sweep_grid keeps recipe and run on one
+        # implementation instead of two that can drift.
         "regeneration_recipe": (
-            "from hotspot3d.footprint.grid import make_grid, distance_field, "
-            "occupancy_at; spec = make_grid(center_coords, pad=rho_max + "
-            f"{params.bbox_padding_A}, h={params.voxel_h_A}, "
-            f"h_fallback={params.voxel_h_fallback_A}, "
-            f"max_voxels={params.voxel_count_fallback_threshold}); "
+            "from hotspot3d.footprint.sweep import build_sweep_grid; "
+            "from hotspot3d.footprint.grid import distance_field, occupancy_at; "
+            "spec = build_sweep_grid(center_coords, rho, params); "
             "occ = occupancy_at(distance_field(spec, center_coords), rho)"),
+        "regeneration_grid_params": {
+            "pad_A": f"rho + {params.bbox_padding_A}",
+            "voxel_h_A": params.voxel_h_A,
+            "voxel_h_fallback_A": params.voxel_h_fallback_A,
+            "max_voxels": params.voxel_count_fallback_threshold,
+        },
     }
+    # EXPECTED_07 calls this file the containment record, so it has to carry one.
+    payload["containment"] = solution.containment or {"determined": False}
     payload["monotonicity_violations"] = solution.sweep.monotonicity_violations
     payload["n_universe_residues"] = len(universe)
     payload["voxel_h_sensitivity"] = h_sensitivity or {"evaluated": False}
@@ -308,62 +316,89 @@ def write_pareto(stage_dir: Path, solution: FootprintSolution) -> tuple[Path, Pa
 
 
 def write_decision(stage_dir: Path, solution: FootprintSolution,
-                   params: FootprintParams, escalations: list[dict],
-                   diagnostics=None) -> Path:
-    result = solution.selection
-    selected = result.selected_key
+                   params: FootprintParams, escalations: list[dict]) -> Path:
+    """The determination record.
+
+    [DECISION-RFP-CONTAINMENT-0001] This file previously described the retired
+    search: the objective set, the utopia point, the L2 distance, the Pareto front,
+    the tie chain and the v2 degeneracy diagnostics. Every one of those keys had no
+    subject once the search was removed — and two of them had become false. The file
+    asserted `r_hot_used_in_selection: false` and `r_fp_bounded_by_r_hot: false`,
+    which is the inverse of the rule now in force: `r_hot` defines the evidence set,
+    and L2 makes `r_fp <= r_hot` structurally. A reader auditing a run from this file
+    would have been told the opposite of what happened, so it is rewritten rather
+    than extended.
+    """
+    record = solution.containment or {}
     payload = {
-        "selected_r_fp_A": selected,
-        "selection_procedure": (
-            "admissible set -> Pareto -> min-max normalization over the admissible "
-            "set -> utopia (1,1,1,1) -> equally weighted L2 distance -> argmin over "
-            "Pareto members -> tie chain"),
-        "objectives": list(params.objective_names),
-        "w_k": params.w_k,
-        "distance_metric": params.distance_metric,
-        "utopia_point": result.utopia,
-        "normalized_objective_vector": result.normalized.get(selected, {}),
-        "distance_to_ideal": result.distances.get(selected),
-        "tie_chain_applied": result.tie_chain_applied,
-        "near_tie_flag": result.near_tie,
-        "near_tie_detail": result.near_tie_detail,
-        "n_admissible": result.n_admissible,
-        "n_pareto_members": len(result.pareto_members),
+        "selected_r_fp_A": solution.r_fp,
+        "rule": "DECISION-RFP-CONTAINMENT-0001",
+        "determination_procedure": (
+            "evidence set E = {P/LP residues within r_hot of some significant "
+            "center} -> r_contain = max over E of the distance to the nearest "
+            "significant center -> r_fp = r_contain rounded UP to the step_fp_A grid"),
+        "selection_performed": False,
+        "selection_note": (
+            "r_fp is DETERMINED, not selected. There is no candidate set, so there "
+            "is no objective vector, no utopia point, no Pareto front and no tie to "
+            "break. The geometric descriptors in footprint_descriptors.tsv are "
+            "reported and decide nothing (footprint_rule.geometric_metrics_decide = "
+            "false)."),
+
+        # --- the determination itself -------------------------------------
+        "r_contain_exact_A": record.get("r_contain_exact_A"),
+        "r_contain_A": record.get("r_contain_A"),
+        "grid_slack_A": record.get("grid_slack_A"),
+        "step_fp_A": params.step_fp_A,
+        "rounding": "UP — r_fp >= r_contain, so containment can never be lost to the grid",
+        "binding_residue": record.get("binding_residue"),
+        "binding_nearest_center": record.get("binding_nearest_center"),
+        "binding_residue_is_outlier": record.get("binding_residue_is_outlier"),
+        "outlier_fence_A": record.get("outlier_fence_A"),
+
+        # --- what the evidence set contained ------------------------------
+        "n_plp_mapped": record.get("n_plp_mapped"),
+        "n_evidence_set": record.get("n_evidence_set"),
+        "n_plp_outside_evidence": record.get("n_plp_outside_evidence"),
+        "fraction_plp_outside_evidence": record.get("fraction_plp_outside_evidence"),
+        "evidence_distance_median_A": record.get("evidence_distance_median_A"),
+        "evidence_distance_q1_A": record.get("evidence_distance_q1_A"),
+        "evidence_distance_q3_A": record.get("evidence_distance_q3_A"),
+        "evidence_distance_iqr_A": record.get("evidence_distance_iqr_A"),
+
+        # --- the dependence on r_hot, stated rather than denied -----------
+        "r_hot_defines_the_evidence_set": True,
+        "r_fp_bounded_above_by_r_hot": True,
+        "r_hot_dependence_statement": (
+            "F10 is revoked. r_hot enters this stage as one per-residue boolean "
+            "(distance <= r_hot) and in no other form: its numeric value is held in "
+            "ReadOnlyHotspotRadius, whose arithmetic and comparison operators raise, "
+            "and it is not an argument to any function in footprint.domain. By L2, "
+            "every evidence distance is <= r_hot, so r_fp <= r_hot after rounding up "
+            "only when r_hot is itself on the grid; the band in sensitivity_band.tsv "
+            "reports the footprint across the plausible r_hot range."),
+        "blb_used_in_determination": False,
+        "blb_note": (
+            "No benign residue enters the rule (L5), so the count of B/LB residues "
+            "inside the footprint is an independent observation about it rather than "
+            "a quantity the radius was tuned against."),
+
+        # --- QC, which judges the determined radius but never moves it ----
+        "n_admissible": solution.selection.n_admissible,
         "excessive_coverage_fraction": solution.excessive_coverage_fraction,
         "coverage_constraint_failure": solution.coverage_constraint_failure,
-        "r_hot_used_in_selection": False,
-        "r_fp_bounded_by_r_hot": False,
-        "f10_statement": ("r_fp was selected from geometry alone. r_hot is not an "
-                          "argument to the footprint API and r_fp is neither set "
-                          "equal to nor bounded below by it."),
-        # --- v2 §4/§7 — objective/constraint separation, mirrored from Stage B --
-        "degenerate_objectives": result.degenerate_objectives,
-        "degenerate_normalized_value": 1.0,
-        "effective_objectives_in_distance":
-            diagnostics.effective_objectives if diagnostics else list(params.objective_names),
-        "degenerate_objectives_excluded_from_distance":
-            diagnostics.degenerate_objectives if diagnostics else [],
-        "degenerate_exclusion_is_numerically_neutral":
-            diagnostics.degenerate_exclusion_is_numerically_neutral if diagnostics else True,
-        "degenerate_objective_note": (
-            "An r_fp objective identical at every admissible candidate "
-            "discriminates nothing. It is excluded from distance-to-utopia and "
-            "reported as non-informative (v2 §4/§7). Under the frozen min-max rule "
-            "it normalizes to 1.0 everywhere, so exclusion changes no distance — "
-            "verified, not assumed."),
-        "VACUOUS_PARETO_SELECTION": diagnostics.vacuous_pareto if diagnostics else False,
-        "vacuous_pareto_reason": diagnostics.vacuous_reason if diagnostics else "NA",
-        "ADMISSIBILITY_DOMINATES_SELECTION":
-            diagnostics.admissibility_dominates if diagnostics else False,
-        "inadmissible_fraction": diagnostics.inadmissible_fraction if diagnostics else 0.0,
-        "inadmissible_by_rule": diagnostics.inadmissible_by_rule if diagnostics else {},
+        "coverage_escalation_only": True,
+        "coverage_note": (
+            "QC-F1 failure escalates and never shrinks the radius: shrinking would "
+            "drop an evidence residue and break L3 (E subset of FP)."),
+        "detection_scale_below_resolution":
+            record.get("detection_scale_below_resolution"),
         "significance_may_determine_admissibility": False,
         "admissibility_note": (
             "Footprint admissibility (QC_F1 coverage, QC_F2 bridging, QC_F3 "
             "undefined geometry) is purely geometric. It was never conditioned on "
-            "significant-center count in the first place, since r_fp operates on "
-            "the already-frozen SIGNIFICANT_HOTSPOT_CENTERS set and never re-tests "
-            "significance (v2 §7)."),
+            "significant-center count, since r_fp operates on the already-frozen "
+            "SIGNIFICANT_HOTSPOT_CENTERS set and never re-tests significance."),
         "escalations": escalations,
     }
     return write_json(stage_dir / "footprint_decision.json", payload)
@@ -560,3 +595,86 @@ def write_structures(struct_dir: Path, solution: FootprintSolution,
         "deselect",
     ]))
     return {"pdb": pdb, "cif": cif, "cxc": cxc, "pml": pml}
+
+
+EVIDENCE_SET_COLUMNS = ["schema_version", "residue_index", "nearest_center",
+                        "distance_A", "in_evidence", "is_binding_residue"]
+
+SENSITIVITY_BAND_COLUMNS = ["schema_version", "r_fp_A", "n_residues",
+                            "n_components", "n_plp", "n_blb", "coverage",
+                            "selected"]
+
+
+def write_evidence_set(stage_dir: Path, evidence, solution: FootprintSolution) -> Path:
+    """Every mapped P/LP residue, its nearest center and the containment verdict.
+
+    [DECISION-RFP-CONTAINMENT-0001] This is the whole input to the radius: ``r_fp``
+    is the largest ``distance_A`` among the rows with ``in_evidence = TRUE``. The
+    rows with ``in_evidence = FALSE`` are real pathogenic residues that no
+    center-anchored footprint can reach; they are listed so the covered fraction is
+    readable rather than inferred.
+    """
+    binding = (solution.containment or {}).get("binding_residue")
+    rows = [{
+        "schema_version": SCHEMA_VERSION,
+        "residue_index": r.residue_id,
+        "nearest_center": r.nearest_center_id,
+        "distance_A": round(float(r.distance_A), 6),
+        "in_evidence": bool(r.in_evidence),
+        "is_binding_residue": bool(r.residue_id == binding),
+    } for r in sorted(evidence.records, key=lambda r: r.distance_A)]
+    return write_tsv(stage_dir / "evidence_set.tsv", rows, EVIDENCE_SET_COLUMNS)
+
+
+def write_sensitivity_band(stage_dir: Path, up, params: FootprintParams,
+                           solution: FootprintSolution) -> Path:
+    """The footprint at every radius from the resolution floor up to ``r_hot``.
+
+    [DECISION-RFP-CONTAINMENT-0001] ``r_fp`` is a function of ``r_hot``, and ``r_hot``
+    is still chosen by a multi-objective procedure that can turn on a sub-percent
+    margin. This band is the mitigation: it shows what the footprint would have been
+    across the plausible range, so a reader can see how much of the result rests on
+    the exact radius. A few extra ``reconstruct_at`` calls; seconds per gene.
+
+    The band runs from the resolution floor to ``r_hot``, or from ``r_fp`` to
+    ``r_hot`` when the floor is above it — which can be a single row.
+    """
+    from .api import DETECTION_SCALE_FLOOR_A, reconstruct_at
+
+    # QC can reject the determined radius, and then there is no selected row. The band
+    # is still written, and that is the point: a reader needs to see what the footprint
+    # would have been across the whole plausible range before accepting that the
+    # rejection is a property of the data rather than of one radius.
+    r_fp = None if solution.r_fp is None else float(solution.r_fp)
+    r_hot = up.r_hot.value_for_coverage_query
+    step = float(params.step_fp_A)
+    if r_hot >= DETECTION_SCALE_FLOOR_A:
+        lo = DETECTION_SCALE_FLOOR_A
+    else:
+        lo = r_hot if r_fp is None else min(r_fp, r_hot)
+    grid = []
+    r = lo
+    while r <= r_hot + 1e-9:
+        grid.append(round(r, 6))
+        r += step
+    if r_fp is not None and not any(abs(g - r_fp) < 1e-9 for g in grid):
+        grid.append(r_fp)
+    grid = sorted({g for g in set(grid) if g > 0.0})
+
+    plp, blb = up.cohort_plp, up.cohort_blb
+    rows = []
+    for g in grid:
+        state = reconstruct_at(up.centers, up.universe, params, float(g)).state
+        covered = {int(up.universe.ids[i]) for i in np.nonzero(state.covered)[0]}
+        rows.append({
+            "schema_version": SCHEMA_VERSION,
+            "r_fp_A": round(float(g), 6),
+            "n_residues": int(state.n_covered_residues),
+            "n_components": int(state.n_components),
+            "n_plp": len(covered & set(plp)),
+            "n_blb": len(covered & set(blb)),
+            "coverage": round(float(state.coverage), 6),
+            "selected": bool(r_fp is not None and abs(g - r_fp) < 1e-9),
+        })
+    return write_tsv(stage_dir / "sensitivity_band.tsv", rows,
+                     SENSITIVITY_BAND_COLUMNS)

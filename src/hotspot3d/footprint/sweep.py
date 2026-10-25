@@ -98,11 +98,20 @@ class SweepResult:
         return {row.rho: row for row in self.rows}
 
 
-def build_sweep_grid(center_coords: np.ndarray, domain: FootprintDomain,
+def build_sweep_grid(center_coords: np.ndarray, pad_rho: float,
                      params: FootprintParams) -> GridSpec:
-    """Bounding box of ``S`` expanded by ``rho_max + 2 A`` (II.8)."""
+    """Bounding box of ``S`` expanded by ``pad_rho + 2 A`` (II.8).
+
+    [DECISION-RFP-CONTAINMENT-0001] ``pad_rho`` is the largest radius the caller is
+    about to evaluate, passed as a number. It used to be read off a domain object as
+    ``domain.rho_max``, which under the retired search meant the 25 A ceiling rather
+    than any radius actually being measured — so the box, and with it the voxel
+    lattice the EDT is sampled on, depended on a bound that no longer exists. Taking
+    the radius directly keeps the grid a function of ``(centers, rho, h)`` alone,
+    which is exactly what the regeneration recipe in the Output Contract promises.
+    """
     return make_grid(center_coords,
-                     pad=domain.rho_max + params.bbox_padding_A,
+                     pad=float(pad_rho) + params.bbox_padding_A,
                      h=params.voxel_h_A,
                      h_fallback=params.voxel_h_fallback_A,
                      max_voxels=params.voxel_count_fallback_threshold)
@@ -157,7 +166,8 @@ def run_sweep(center_coords: np.ndarray, universe_coords: np.ndarray,
     re-extracted once at export time from the same distance field, which bounds
     memory without losing anything the decision rests on.
     """
-    spec = build_sweep_grid(center_coords, domain, params)
+    spec = build_sweep_grid(
+        center_coords, max(domain.grid, default=domain.rho_max), params)
     dist = distance_field(spec, center_coords)          # THE single EDT
     seed_idx = seed_indices(spec, center_coords)
 

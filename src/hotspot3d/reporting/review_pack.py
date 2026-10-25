@@ -42,7 +42,7 @@ MANDATORY_FIGURES = [
     ("F7", "Footprint multi-scale — components and volume vs r_fp",
      "07_FOOTPRINT_RADIUS", "F7_footprint_multiscale.png"),
     ("F8", "r_fp Pareto parallel coordinates and distance-to-ideal",
-     "07_FOOTPRINT_RADIUS", "F8_footprint_pareto.png"),
+     "07_FOOTPRINT_RADIUS", "F8_footprint_pareto_selection.png"),
     ("F9", "Robustness — Jaccard and Dice distributions with thresholds",
      "09_ROBUSTNESS", "F9_robustness_distributions.png"),
     ("F10", "Center-loss sensitivity — per-center influence ranking",
@@ -94,7 +94,12 @@ def build_review_pack(ctx: RunContext, *, run_status: RunStatus, outcome_type: s
     # -- decision traces (small, belong at L2) -------------------------------
     trace_dir = pack / "decision_trace"
     for src_rel, dst_name in (("05_HOTSPOT_RADIUS/r_hot_scan.tsv", "r_hot_scan.tsv"),
-                              ("07_FOOTPRINT_RADIUS/r_fp_scan.tsv", "r_fp_scan.tsv")):
+                              ("07_FOOTPRINT_RADIUS/footprint_descriptors.tsv",
+                               "footprint_descriptors.tsv"),
+                              ("07_FOOTPRINT_RADIUS/evidence_set.tsv",
+                               "evidence_set.tsv"),
+                              ("07_FOOTPRINT_RADIUS/sensitivity_band.tsv",
+                               "sensitivity_band.tsv")):
         src = fr / src_rel
         if src.is_file():
             method = _link_or_copy(src, trace_dir / dst_name)
@@ -197,7 +202,11 @@ def _selected_radii_rows(fr: Path) -> list[dict]:
         })
     fp = _maybe(fr / "07_FOOTPRINT_RADIUS" / "footprint_decision.json")
     fdom = _maybe(fr / "07_FOOTPRINT_RADIUS" / "footprint_domain.json")
-    fbnd = _maybe(fr / "07_FOOTPRINT_RADIUS" / "footprint_domain_boundary_diagnostic.json")
+    # [DECISION-RFP-CONTAINMENT-0001] No boundary diagnostic: a determined radius
+    # cannot sit near the edge of a domain it does not have. The containment record
+    # inside footprint_domain.json is what replaces it.
+    fdom = _maybe(fr / "07_FOOTPRINT_RADIUS" / "footprint_domain.json") or {}
+    fcontain = fdom.get("containment") or {}
     if fp:
         rows.append({
             "radius_type": "r_fp", "value_A": fp.get("selected_r_fp"),
@@ -208,7 +217,7 @@ def _selected_radii_rows(fr: Path) -> list[dict]:
             "domain_lo_A": (fdom or {}).get("rho_min"),
             "domain_hi_A": (fdom or {}).get("rho_max"),
             "fallback_flag": False,
-            "boundary_warning": (fbnd or {}).get("DOMAIN_BOUNDARY_WARNING"),
+            "boundary_warning": None,   # no domain, no boundary
             "near_tie_flag": fp.get("near_tie"),
             "n_pareto": len(fp.get("pareto_members", []) or []),
             "source_file": "FULL_RESULTS/07_FOOTPRINT_RADIUS/footprint_decision.json",
@@ -246,7 +255,7 @@ def _sections(fr: Path) -> dict[str, str]:
            f"{_table(scan, [c for c in ['radius_A','loo_mcc','perm_evidence_raw','fold_enrichment','neighbor_stability','n_significant_centers','coverage_fraction','qc_status','qc_failure_reason','pareto_member','distance_to_ideal','selected'] if scan and c in scan[0]], 'tbl-hot', 'selected')}</details>"
            if scan else ""))
 
-    fp_scan = _rows(fr / "07_FOOTPRINT_RADIUS" / "r_fp_scan.tsv")
+    fp_scan = _rows(fr / "07_FOOTPRINT_RADIUS" / "footprint_descriptors.tsv")
     fp_res = _rows(fr / "08_FINAL_FOOTPRINT" / "footprint_residues.tsv")
     out["Footprint"] = (
         f"<p>Final footprint covers <b>{len(fp_res)}</b> residues.</p>"

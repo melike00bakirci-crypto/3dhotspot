@@ -391,8 +391,13 @@ def test_no_stage_d_iteration_invokes_footprint_radius_optimization(monkeypatch,
                                                                      tmp_path):
     """DECISION-STAGE-D-FIXED-RFP-0001, the dynamic pin: a real run, not just source.
 
-    build_footprint (domain re-derivation -> multi-scale sweep -> QC -> Pareto ->
-    distance-to-ideal selection) is spied on across a real Phase C + Phase D run.
+    [DECISION-RFP-CONTAINMENT-0001] The determination is now
+    build_footprint_contained (containment domain -> single-radius evaluation -> QC),
+    so that is what is spied on; build_footprint itself raises and has no callers.
+    The invariant is unchanged and matters more under containment, not less: r_fp is
+    a function of the center set, so a determination called inside an iteration would
+    recompute it on the PERTURBED set and silently defeat the fixed-radius design.
+
     It legitimately fires exactly twice — once for Stage C's own FP_original
     selection, once for Phase D's mandatory baseline reproduction on the FULL,
     unperturbed center set (agent §6.10) — and must fire ZERO additional times
@@ -403,15 +408,15 @@ def test_no_stage_d_iteration_invokes_footprint_radius_optimization(monkeypatch,
     import hotspot3d.footprint.api as api_mod
 
     calls = []
-    real_build_footprint = api_mod.build_footprint
+    real_determination = api_mod.build_footprint_contained
 
     def spy(*args, **kwargs):
         calls.append(1)
-        return real_build_footprint(*args, **kwargs)
+        return real_determination(*args, **kwargs)
 
-    monkeypatch.setattr(api_mod, "build_footprint", spy)
-    monkeypatch.setattr("hotspot3d.footprint.stage.build_footprint", spy)
-    monkeypatch.setattr("hotspot3d.robustness.stage.build_footprint", spy)
+    monkeypatch.setattr(api_mod, "build_footprint_contained", spy)
+    monkeypatch.setattr("hotspot3d.footprint.stage.build_footprint_contained", spy)
+    monkeypatch.setattr("hotspot3d.robustness.stage.build_footprint_contained", spy)
 
     ctx, upstream = synthetic_run(tmp_path, center_ids=two_cluster_centers()[:4])
     handoff_03, phase_c = run_phase_c(ctx, upstream=upstream)

@@ -207,17 +207,22 @@ FROZEN_ASSERTIONS: list[tuple[str, Any]] = [
     ("radius_selection.w_k", 1.0),
     ("radius_selection.distance_metric", "L2"),
     ("radius_selection.normalization", "min_max"),
-    # DECISION-FOOTPRINT-DOMAIN-0001: the r_fp domain is [5.0, min(0.25*D_max, 25.0)].
-    ("footprint_domain.rho_min_A", 5.0),  # DECISION-FOOTPRINT-DOMAIN-0001 (was 3.0)
-    ("footprint_domain.hard_ceiling_A", 25.0),  # DECISION-FOOTPRINT-DOMAIN-0001 (was 20.0)
-    # The substantive half of that decision: rho_all measures centre packing, which is
-    # not what r_fp is for. Pinned so it cannot be flipped back silently.
-    ("footprint_domain.post_merge_factor_caps_rho_max", False),
-    ("footprint_domain.step_fp_A", 0.5),
-    ("footprint_domain.bound_below_by_r_hot", False),
-    ("footprint_qc.QC_F1_max_coverage", 0.50),
-    ("footprint_selection.w_k", 1.0),
-    ("footprint_selection.distance_metric", "L2"),
+    # [DECISION-RFP-CONTAINMENT-0001] The r_fp search is retired. The domain bounds
+    # (rho_min_A, hard_ceiling_A, post_merge_factor_caps_rho_max) and the selection
+    # constants (w_k, distance_metric) had no subject left and are not asserted here
+    # any more — pinning a value that governs nothing asserts a guarantee the code no
+    # longer provides. bound_below_by_r_hot is likewise gone: its meaning inverted, so
+    # keeping it at False would read as the opposite of what now happens.
+    # Replaced by behaviour-bearing assertions:
+    ("footprint_rule.selector", "containment"),
+    ("footprint_rule.distance_metric", "euclidean"),
+    ("footprint_rule.uses_blb", False),
+    ("footprint_rule.geometric_metrics_decide", False),
+    ("footprint_rule.detection_scale_flag_A", 7.0),
+    ("footprint_rule.coverage_escalation_only", True),
+    ("footprint_domain.step_fp_A", 0.5),          # the upward-rounding grid
+    ("footprint_qc.QC_F1_max_coverage", 0.50),    # value unchanged; role is now
+                                                  # escalation, never candidate filter
     ("robustness.rerun_hotspot_pipeline", False),
     ("robustness.modify_clinvar_records", False),
     ("robustness.emit_categorical_verdict", False),

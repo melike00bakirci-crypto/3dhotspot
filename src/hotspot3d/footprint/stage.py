@@ -23,8 +23,9 @@ from ..utils.status import (OutcomeType, Severity, StageStatus, Status,
                             WarningCollector, utc_now)
 from . import export, figures, freeze as freeze_mod, inputs as inputs_mod
 from . import report as report_mod
-from . import selection as sel
-from .api import (FOOTPRINT_API_VERSION, FootprintSolution, build_footprint,
+from .domain import derive_containment_domain
+from .api import (FOOTPRINT_API_VERSION, FootprintSolution,
+                  build_footprint_contained,
                   footprint_code_version)
 from .inputs import UpstreamInputs
 from .params import FootprintParams
@@ -35,16 +36,21 @@ STAGE_07 = "07_FOOTPRINT_RADIUS"
 STAGE_08 = "08_FINAL_FOOTPRINT"
 STAGE_09 = "09_ROBUSTNESS"
 
+# [DECISION-RFP-CONTAINMENT-0001] The objective matrix, the Pareto files and the
+# boundary diagnostic are gone with the search. evidence_set.tsv is the new decision
+# trace — r_fp is the largest in-evidence distance in it — and sensitivity_band.tsv
+# is the mitigation for r_fp inheriting r_hot's margin.
 EXPECTED_07 = [
-    ("r_fp_scan.tsv", "the single decision trace: every candidate radius, every metric"),
-    ("footprint_domain.json", "II.9 domain: MST, merge scales, rho_all, grid, voxel h"),
-    ("footprint_admissibility.tsv", "verbatim QC projection of r_fp_scan.tsv (P1)"),
+    ("evidence_set.tsv", "THE decision trace: every mapped P/LP, its nearest center, "
+                         "the containment verdict, and which residue binds r_fp"),
+    ("sensitivity_band.tsv", "the footprint at every radius from the resolution floor "
+                             "to r_hot, with the selected row marked"),
+    ("footprint_descriptors.tsv", "geometric descriptors of the determined radius"),
+    ("footprint_domain.json", "containment record: r_contain, evidence counts, "
+                              "binding residue, outlier fence, MST merge scales"),
+    ("footprint_admissibility.tsv", "verbatim QC projection (P1)"),
     ("merge_events.tsv", "merge events with participating components and neck widths"),
-    ("footprint_objective_matrix.json", "objective matrix and correlation diagnostic"),
-    ("footprint_pareto.json", "Pareto members with normalized values and distances"),
-    ("footprint_pareto_dominated.json", "dominated and inadmissible candidates retained"),
-    ("footprint_decision.json", "the selection record"),
-    ("footprint_domain_boundary_diagnostic.json", "BW1/BW2/BW3 boundary diagnostic"),
+    ("footprint_decision.json", "the determination record"),
     ("stage_status.json", "stage status (always present)"),
     (f"warnings_{STAGE_07}.tsv", "stage warnings"),
     ("stage_manifest.tsv", "this manifest"),
@@ -132,7 +138,8 @@ def run_phase_c(ctx: RunContext, *, upstream: Handoff
 
     # -- 2-6. build the solution ------------------------------------------
     try:
-        solution = build_footprint(up.centers, up.universe, params)
+        solution = build_footprint_contained(up.centers, up.universe, params,
+                                             up.evidence)
     except NegativeResult as neg:
         return _finish_negative(ctx, dir_07, dir_08, warn07, warn08, up, params,
                                 neg, started, t0), None
@@ -147,30 +154,21 @@ def run_phase_c(ctx: RunContext, *, upstream: Handoff
                      if solution.r_fp is not None else None)
     export.write_domain(dir_07, solution, up.universe, up.centers.ids, params,
                         h_sensitivity=h_sensitivity)
-    redundancy = sel.redundancy_flags(solution.selection, params)
-    export.write_objective_matrix(dir_07, solution, params, redundancy)
-    export.write_pareto(dir_07, solution)
-    export.write_boundary_diagnostic(dir_07, solution)
+    # [DECISION-RFP-CONTAINMENT-0001] No objective matrix, Pareto front or boundary
+    # diagnostic: with one candidate there is no domination, no utopia distance and
+    # no domain edge. The containment record and the evidence set replace them.
+    export.write_evidence_set(dir_07, up.evidence, solution)
+    export.write_sensitivity_band(dir_07, up, params, solution)
 
-    # -- v2 §4/§7: objective/constraint separation diagnostics, mirrored from
-    # Stage B (hotspot/selection.py). Post-hoc over the already-selected result and
-    # QC verdicts — never a change to build_footprint(), which Phase D re-executes
-    # per iteration (see footprint/selection.py module docstring).
-    diagnostics = sel.diagnose_selection(solution.selection, solution.verdicts, params)
-    if not diagnostics.degenerate_exclusion_is_numerically_neutral:
-        raise BlockedError(
-            "BLOCKED — excluding the degenerate footprint objectives from "
-            "distance-to-utopia changes a distance. Under the frozen min-max rule a "
-            "degenerate objective normalizes to 1.0 everywhere and must contribute "
-            "exactly 0; a discrepancy means the selection machinery has drifted."
-        )
-
-    _emit_selection_warnings(warn07, solution, params, redundancy, escalations,
-                             scan_rows, h_sensitivity, diagnostics)
+    # [DECISION-RFP-CONTAINMENT-0001] The objective/constraint separation diagnostic
+    # is gone with the objectives: a one-candidate set cannot have a degenerate
+    # objective change a distance, because no distance decides anything.
+    _emit_containment_warnings(warn07, solution, up, params, escalations,
+                               h_sensitivity)
 
     figures.figure_f7(dir_07 / "figures", solution, params)
     figures.figure_f8(dir_07 / "figures", solution, params)
-    export.write_decision(dir_07, solution, params, escalations, diagnostics)
+    export.write_decision(dir_07, solution, params, escalations)
 
     # -- escalation: coverage constraint failure --------------------------
     if solution.coverage_constraint_failure:
@@ -181,9 +179,10 @@ def run_phase_c(ctx: RunContext, *, upstream: Handoff
     if solution.r_fp is None:
         neg = NegativeResult(
             "NO_ADMISSIBLE_FOOTPRINT",
-            "No candidate radius in the derived domain satisfied QC-F1/F2/F3. "
-            "Every candidate is retained in r_fp_scan.tsv with its metrics and "
-            "rejection reason.",
+            "The containment radius failed QC-F1/F2/F3. There is no alternative "
+            "candidate to fall back to: DECISION-RFP-CONTAINMENT-0001 determines a "
+            "single radius and never shrinks it to pass a gate. The radius and its "
+            "metrics are retained in footprint_descriptors.tsv.",
             n_candidates=len(solution.sweep.rows),
             excessive_coverage_fraction=solution.excessive_coverage_fraction,
         )
@@ -206,7 +205,7 @@ def run_phase_c(ctx: RunContext, *, upstream: Handoff
     report_mod.write_stage_c_report(
         dir_08 / "stage_c_report.md", solution, up.universe, params,
         up.centers.ids, warn07.items + warn08.items, escalations, code_ver,
-        ctx.run_id, ctx.gene, diagnostics)
+        ctx.run_id, ctx.gene)
 
     # -- 9. FREEZE GATE ---------------------------------------------------
     freeze = freeze_mod.write_freeze(
@@ -241,178 +240,14 @@ def run_phase_c(ctx: RunContext, *, upstream: Handoff
 # warnings and escalations
 # --------------------------------------------------------------------------
 
-def _emit_selection_warnings(warn: WarningCollector, solution: FootprintSolution,
-                             params: FootprintParams, redundancy: list[dict],
-                             escalations: list[dict], scan_rows: list[dict],
-                             h_sensitivity: dict | None = None,
-                             diagnostics: "sel.SelectionDiagnostics | None" = None
-                             ) -> None:
-    if diagnostics is not None:
-        _emit_objective_constraint_warnings(warn, diagnostics, params, escalations)
-
-    for row in scan_rows:
-        if row["excessive_footprint_coverage"]:
-            warn.add("EXCESSIVE_FOOTPRINT_COVERAGE",
-                     f"candidate r_fp = {row['r_fp_A']:g} A covers "
-                     f"{row['coverage_fraction']:.4g} of U_struct, above the frozen "
-                     f"QC-F1 limit {params.qc_f1_max_coverage:g}",
-                     potential_consequence="candidate is inadmissible",
-                     recommended_action="none — the 0.50 threshold is never relaxed",
-                     affected_output="r_fp_scan.tsv", status="ACCEPTED_BY_DESIGN")
-
-    if solution.selection.near_tie:
-        detail = solution.selection.near_tie_detail
-        warn.add("NEAR_TIE_RADIUS_SELECTION",
-                 f"r_fp = {detail.get('first')} A and {detail.get('second')} A differ "
-                 f"by {detail.get('relative_gap'):.3g} in distance-to-ideal while "
-                 f"being more than {params.near_tie_radius_separation_steps} steps "
-                 f"apart",
-                 potential_consequence="a materially different radius was nearly "
-                                       "selected",
-                 affected_output="footprint_decision.json")
-        escalations.append({
-            "condition": "NEAR_TIE_RADIUS_SELECTION",
-            "detail": f"near-tie between {detail.get('first')} A and "
-                      f"{detail.get('second')} A (relative gap "
-                      f"{detail.get('relative_gap'):.3g})",
-            "options": ["accept the tie-chain outcome",
-                        "Lead-authorized re-run under a new RUN_ID with a "
-                        "pre-registered finer grid"],
-            "recommendation": "accept the tie-chain outcome; it is deterministic and "
-                              "pre-registered. Reported for visibility.",
-        })
-
-    if redundancy:
-        pairs = ", ".join(f"{r['objective_a']}~{r['objective_b']} "
-                          f"(r={r['pearson_r']:.3f})" for r in redundancy)
-        warn.add("OBJECTIVE_REDUNDANCY",
-                 f"objective pairs exceeding |rho| = "
-                 f"{params.objective_redundancy_abs_rho}: {pairs}",
-                 potential_consequence="the effective dimensionality of the Pareto "
-                                       "problem is lower than four",
-                 affected_output="footprint_objective_matrix.json")
-        escalations.append({
-            "condition": "OBJECTIVE_REDUNDANCY",
-            "detail": f"objective correlation exceeds the configured threshold: {pairs}",
-            "options": ["proceed — the objective set is FROZEN and equally weighted",
-                        "Lead-authorized methodological revision under a new RUN_ID"],
-            "recommendation": "proceed and report. The objective set and w_k = 1 are "
-                              "frozen; changing them after seeing the correlation "
-                              "would be outcome-dependent weighting.",
-        })
-
-    if solution.boundary.get("DOMAIN_BOUNDARY_WARNING"):
-        warn.add("BOUNDARY_OPTIMUM_WARNING",
-                 f"the r_fp optimum sits in the "
-                 f"{solution.boundary.get('which_end')} boundary band "
-                 f"({solution.boundary.get('band_width_points')} grid points); "
-                 f"binding constraint: {solution.boundary.get('binding_edge')}",
-                 potential_consequence="the true optimum may lie outside the derived "
-                                       "domain",
-                 recommended_action="Lead-authorized re-run under a NEW RUN_ID with an "
-                                    "explicitly widened, pre-registered domain; "
-                                    "automatic widening is prohibited",
-                 affected_output="footprint_domain_boundary_diagnostic.json")
-        escalations.append({
-            "condition": "DOMAIN_BOUNDARY_WARNING",
-            "detail": f"band = {solution.boundary.get('band_members')}, binding edge "
-                      f"= {solution.boundary.get('binding_edge')}",
-            "options": ["accept the selection as-is",
-                        "Lead-authorized re-run with a widened, pre-registered domain "
-                        "under a new RUN_ID"],
-            "recommendation": "report the band and the binding constraint; recommend a "
-                              "Lead-authorized widened re-run. The domain is never "
-                              "widened here.",
-        })
-
-    if solution.spec.fallback_applied:
-        warn.add("VOXEL_RESOLUTION_FALLBACK",
-                 f"voxel edge fell back from {params.voxel_h_A} A to "
-                 f"{solution.spec.h} A above "
-                 f"{params.voxel_count_fallback_threshold:,} voxels",
-                 potential_consequence="absolute volumes are coarser; comparisons "
-                                       "within this run remain internally consistent",
-                 affected_output="footprint_domain.json")
-        relative = (h_sensitivity or {}).get("relative_difference")
-        if relative is not None and relative > 0.10:
-            escalations.append({
-                "condition": "VOXEL_RESOLUTION_FALLBACK_MATERIAL",
-                "detail": (f"the resolution fallback changes the reported footprint "
-                           f"volume by {relative:.1%} "
-                           f"({h_sensitivity['volume_used_A3']:.4g} A^3 at h="
-                           f"{h_sensitivity['voxel_h_used_A']} vs "
-                           f"{h_sensitivity['volume_alternative_A3']:.4g} A^3 at h="
-                           f"{h_sensitivity['voxel_h_alternative_A']})"),
-                "options": ["accept the coarser grid and its recorded volumes",
-                            "Lead-authorized re-run under a new RUN_ID with more "
-                            "memory so the fine grid fits"],
-                "recommendation": ("report both volumes; the selection itself is "
-                                   "unaffected because every candidate was measured "
-                                   "on the same grid. The voxel edge is never tuned "
-                                   "toward a preferred volume."),
-            })
-
-
-def _emit_objective_constraint_warnings(warn: WarningCollector,
-                                        diagnostics: "sel.SelectionDiagnostics",
-                                        params: FootprintParams,
-                                        escalations: list[dict]) -> None:
-    """v2 §4/§7 objective/constraint separation, mirrored from Stage B's
-    ``hotspot/stage.py::select_radius`` block and adapted to footprint's own
-    objective names and QC_F1/F2/F3 rule codes."""
-    if diagnostics.degenerate_objectives:
-        warn.add(
-            "DEGENERATE_OBJECTIVE",
-            f"Objective(s) {diagnostics.degenerate_objectives} take the identical "
-            f"value at every admissible r_fp candidate and discriminate nothing. "
-            f"Excluded from distance-to-utopia; the effective objective set is "
-            f"{diagnostics.effective_objectives}.",
-            potential_consequence=(
-                "Fewer objectives are actually deciding r_fp than the four the "
-                "design declares, so 'multi-objective' overstates the decision."),
-            recommended_action=("Report the effective objective set alongside "
-                                "r_fp. The objective set is frozen for this run."),
-            affected_output="footprint_decision.json")
-    if diagnostics.vacuous_pareto:
-        warn.add(
-            "VACUOUS_PARETO_SELECTION",
-            f"VACUOUS_PARETO_SELECTION: {diagnostics.vacuous_reason}.",
-            potential_consequence=(
-                "r_fp was not chosen by trading objectives off against each "
-                "other; the geometry was the only non-dominated survivor, not a "
-                "trade-off outcome."),
-            recommended_action=("Report the Pareto set size and the effective "
-                                "objective set prominently beside r_fp."),
-            affected_output="footprint_pareto.json")
-        escalations.append({
-            "condition": "VACUOUS_PARETO_SELECTION",
-            "detail": f"VACUOUS_PARETO_SELECTION at r_fp: {diagnostics.vacuous_reason}.",
-            "options": ["accept r_fp and report the vacuity prominently "
-                        "(current behaviour)",
-                        "Lead review of whether the objective set discriminates at "
-                        "all for this footprint, under a NEW RUN_ID"],
-            "recommendation": ("accept and report; the objective set is frozen "
-                               "for this run. The reported radius carries no "
-                               "trade-off information; changing the objective set "
-                               "after seeing results would be outcome-dependent and "
-                               "is prohibited."),
-        })
-    if diagnostics.admissibility_dominates:
-        warn.add(
-            "ADMISSIBILITY_DOMINATES_SELECTION",
-            f"{diagnostics.inadmissible_fraction:.1%} of scanned r_fp candidates "
-            f"were ruled inadmissible (threshold "
-            f"{params.admissibility_dominates_fraction:.0%}); by rule: "
-            f"{diagnostics.inadmissible_by_rule}.",
-            potential_consequence=("Admissibility, not the objectives, decided the "
-                                   "outcome."),
-            recommended_action=("Report which QC_F rule did the eliminating. "
-                                "Footprint admissibility is purely geometric "
-                                "(coverage, bridging, undefined geometry) and is "
-                                "never conditioned on significant-center count."),
-            affected_output="r_fp_scan.tsv")
-
-
+# [DECISION-RFP-CONTAINMENT-0001] _emit_selection_warnings and
+# _emit_objective_constraint_warnings are gone. They warned about NEAR_TIE_RADIUS_SELECTION,
+# OBJECTIVE_REDUNDANCY and BOUNDARY_OPTIMUM_WARNING — all properties of a candidate set.
+# Two of their warnings were NOT about selection and were kept rather than dropped with
+# them: VOXEL_RESOLUTION_FALLBACK moved into _emit_containment_warnings, and the per-row
+# EXCESSIVE_FOOTPRINT_COVERAGE is subsumed by FOOTPRINT_COVERAGE_CONSTRAINT_FAILURE,
+# which fires at BLOCKING severity because with one candidate "this radius exceeds
+# coverage" and "every candidate exceeds coverage" are the same event.
 def _finish_coverage_escalation(ctx, dir_07: Path, dir_08: Path,
                                 warn07: WarningCollector, warn08: WarningCollector,
                                 solution: FootprintSolution, params: FootprintParams,
@@ -426,13 +261,13 @@ def _finish_coverage_escalation(ctx, dir_07: Path, dir_08: Path,
                                      "frozen rule",
                recommended_action="Lead decision. The domain is NOT widened and the "
                                   "0.50 rule is NOT relaxed.",
-               affected_output="r_fp_scan.tsv")
+               affected_output="footprint_descriptors.tsv")
     reason = (
         f"ALL_FOOTPRINT_CANDIDATES_EXCESSIVE_COVERAGE = TRUE: {fraction:.1%} of the "
         f"{len(solution.sweep.rows)} candidate radii in "
         f"[{solution.domain.rho_min:g}, {solution.domain.rho_max:g}] A cover more than "
         f"{params.qc_f1_max_coverage:g} of U_struct. The full coverage curve is in "
-        f"r_fp_scan.tsv."
+        f"footprint_descriptors.tsv."
     )
     _write_status(dir_07, STAGE_07, Status.BLOCKED, OutcomeType.SCIENTIFIC_NEGATIVE,
                   reason, started, t0, warn07, None, len(EXPECTED_07),
@@ -500,7 +335,19 @@ def _finish_negative(ctx: RunContext, dir_07: Path, dir_08: Path,
         "footprint_radius": None, "n_components": None, "volume_A3": None,
         "surface_area_A2": None, "n_footprint_residues": None, "coverage": None,
         "voxel_h_A": params.voxel_h_A, "voxel_h": params.voxel_h_A,
-        "near_tie_flag": False, "domain_boundary_warning": False,
+        "r_contain_A": None, "r_contain_exact_A": None, "grid_slack_A": None,
+        "n_plp_mapped": int(up.evidence.n_plp_mapped),
+        "n_evidence_set": len(up.evidence.evidence),
+        "n_plp_outside_evidence": len(up.evidence.outside),
+        "fraction_plp_outside_evidence": (
+            len(up.evidence.outside) / up.evidence.n_plp_mapped
+            if up.evidence.n_plp_mapped else None),
+        "binding_residue": None, "binding_residue_is_outlier": None,
+        "detection_scale_below_resolution": None, "coverage_escalated": None,
+        "r_hot_runner_up_A": (up.r_hot_runner_up.value_for_coverage_query
+                              if up.r_hot_runner_up is not None else None),
+        "r_hot_runner_up_margin_rel": up.r_hot_runner_up_margin_rel,
+        "r_contain_at_runner_up_A": None,
         "code_version": footprint_code_version(),
         "footprint_api_version": FOOTPRINT_API_VERSION,
     }
@@ -612,14 +459,21 @@ def _build_handoff_03(ctx: RunContext, solution: FootprintSolution,
         "voxel_h": float(solution.spec.h),
         "voxel_h_A": float(solution.spec.h),
         "voxel_resolution_fallback_applied": bool(solution.spec.fallback_applied),
-        "near_tie_flag": bool(solution.selection.near_tie),
-        "domain_boundary_warning": bool(
-            solution.boundary.get("DOMAIN_BOUNDARY_WARNING")),
         "code_version": code_ver,
         "footprint_api_version": FOOTPRINT_API_VERSION,
         "n_significant_centers": len(up.centers),
         "center_set_sha256": up.centers.digest(),
-        "r_fp_independent_of_r_hot": True,
+        # [DECISION-RFP-CONTAINMENT-0001] the containment record
+        **{k: solution.containment[k] for k in (
+            "r_contain_A", "r_contain_exact_A", "grid_slack_A",
+            "n_plp_mapped", "n_evidence_set", "n_plp_outside_evidence",
+            "fraction_plp_outside_evidence", "binding_residue",
+            "binding_residue_is_outlier", "detection_scale_below_resolution",
+            "coverage_escalated")},
+        "r_hot_runner_up_A": (up.r_hot_runner_up.value_for_coverage_query
+                              if up.r_hot_runner_up is not None else None),
+        "r_hot_runner_up_margin_rel": up.r_hot_runner_up_margin_rel,
+        "r_contain_at_runner_up_A": _r_contain_at_runner_up(up, params),
     }
     handoff = Handoff(
         name="handoff_03", run_id=ctx.run_id, config_sha256=ctx.config.sha256,
@@ -692,3 +546,133 @@ def _record_provenance(ctx: RunContext, stage: str, up: UpstreamInputs,
         commands=[f"hotspot3d.footprint.stage.run_phase_c(run_id={ctx.run_id})"],
         warnings=[w.as_row() for w in warn.items],
     )
+
+
+def _r_contain_at_runner_up(up: UpstreamInputs, params: FootprintParams):
+    """``r_contain`` recomputed against the runner-up ``r_hot``. Reporting only.
+
+    [DECISION-RFP-CONTAINMENT-0001, weakness 1] ``r_fp`` is a function of ``r_hot``,
+    and ``r_hot`` is still chosen by the multi-objective machinery this decision
+    rejects for ``r_fp``. Measured on KCNA2, whose ``r_hot`` has flipped between 9.5
+    and 10.0 across runs at a 0.18-1.58 % margin, that propagates to 117 vs 143
+    footprint residues and 2 vs 1 components. Reporting both radii makes the
+    fragility visible; it changes nothing.
+    """
+    if up.evidence_runner_up is None:
+        return None
+    try:
+        _, record = derive_containment_domain(
+            up.centers.coords, up.universe.coords, up.evidence_runner_up, params)
+    except NegativeResult:
+        return None                      # runner-up admits no evidence set
+    return float(record["r_contain_A"])
+
+
+def _emit_containment_warnings(warn: WarningCollector, solution: FootprintSolution,
+                               up: UpstreamInputs, params: FootprintParams,
+                               escalations: list[dict],
+                               h_sensitivity: dict | None = None) -> None:
+    """The reporting the rule owes, per DECISION-RFP-CONTAINMENT-0001.
+
+    None of these change the radius. The decision is explicit that the coverage rule
+    escalates rather than shrinking ``r_fp``, and that the resolution flag never
+    raises it.
+    """
+    rc = solution.containment
+
+    if rc["detection_scale_below_resolution"]:
+        warn.add(
+            "DETECTION_SCALE_BELOW_3D_RESOLUTION",
+            f"r_contain = {rc['r_contain_exact_A']:.3f} A is below the "
+            f"{params_detection_floor():g} A flag: the detection scale is at or "
+            f"under what Ca-level geometry resolves. The radius is NOT raised — "
+            f"raising it would report a volume the evidence does not support.",
+            severity=Severity.ADVISORY,
+            potential_consequence=("Footprint geometry at this scale is dominated by "
+                                   "the Ca spacing of adjacent residues."),
+            recommended_action="None. Report the flag beside the footprint.",
+            affected_output="footprint_descriptors.tsv")
+
+    if rc["binding_residue_is_outlier"]:
+        warn.add(
+            "CONTAINMENT_BINDING_RESIDUE_IS_OUTLIER",
+            f"residue {rc['binding_residue']} sets r_contain at "
+            f"{rc['r_contain_exact_A']:.3f} A while the evidence-set distances have "
+            f"median {rc['evidence_distance_median_A']:.3f} A and an outlier fence "
+            f"of {rc['outlier_fence_A']:.3f} A. The radius is extrapolated from the "
+            f"bulk to one point.",
+            severity=Severity.ADVISORY,
+            potential_consequence=("Reclassifying that single residue would move the "
+                                   "footprint boundary."),
+            recommended_action="None. Report the binding residue and the fence.",
+            affected_output="evidence_set.tsv")
+
+    frac = rc["fraction_plp_outside_evidence"]
+    if frac is not None and frac > 0.25:
+        warn.add(
+            "PLP_OUTSIDE_EVIDENCE_SET",
+            f"{rc['n_plp_outside_evidence']} of {rc['n_plp_mapped']} mapped P/LP "
+            f"residues ({100 * frac:.1f} %) lie outside the detection neighbourhood "
+            f"of every significant center. No center-anchored footprint can contain "
+            f"them; the radius is not grown to reach them.",
+            severity=Severity.ADVISORY,
+            potential_consequence=("The footprint covers a minority of this gene's "
+                                   "pathogenic variation and must not be described "
+                                   "as its pathogenic region."),
+            recommended_action=("State the covered fraction wherever the footprint "
+                                "is reported."),
+            affected_output="evidence_set.tsv")
+
+    if up.r_hot_runner_up_margin_rel is not None and up.r_hot_runner_up_margin_rel < 0.05:
+        warn.add(
+            "R_FP_INHERITS_R_HOT_NEAR_TIE",
+            f"r_hot beat its runner-up by "
+            f"{100 * up.r_hot_runner_up_margin_rel:.3f} %. r_fp is derived from the "
+            f"evidence set that r_hot defines, so the footprint boundary rests on "
+            f"that margin.",
+            severity=Severity.ADVISORY,
+            potential_consequence=("Component count and residue count can change "
+                                   "with a re-seeded run."),
+            recommended_action=("Report r_contain at both radii; the sensitivity "
+                                "band is in sensitivity_band.tsv."),
+            affected_output="sensitivity_band.tsv")
+
+
+    # [DECISION-RFP-CONTAINMENT-0001] Carried over from the retired
+    # _emit_selection_warnings: this one was never about selection. If the box
+    # exceeded the voxel budget the edge coarsens, and every geometric descriptor
+    # below is then measured on a coarser lattice. Dropping it with the rest of that
+    # block would have made the condition unreportable. The pad fix in this same
+    # change makes the fallback rarer, not impossible.
+    if solution.spec.fallback_applied:
+        warn.add("VOXEL_RESOLUTION_FALLBACK",
+                 f"voxel edge fell back from {params.voxel_h_A} A to "
+                 f"{solution.spec.h} A above "
+                 f"{params.voxel_count_fallback_threshold:,} voxels",
+                 potential_consequence="absolute volumes are coarser; comparisons "
+                                       "within this run remain internally consistent",
+                 affected_output="footprint_domain.json")
+        relative = (h_sensitivity or {}).get("relative_difference")
+        if relative is not None and relative > 0.10:
+            escalations.append({
+                "condition": "VOXEL_RESOLUTION_FALLBACK_MATERIAL",
+                "detail": (f"the resolution fallback changes the reported footprint "
+                           f"volume by {relative:.1%} "
+                           f"({h_sensitivity['volume_used_A3']:.4g} A^3 at h="
+                           f"{h_sensitivity['voxel_h_used_A']} vs "
+                           f"{h_sensitivity['volume_alternative_A3']:.4g} A^3 at h="
+                           f"{h_sensitivity['voxel_h_alternative_A']})"),
+                "options": ["accept the coarser grid and its recorded volumes",
+                            "Lead-authorized re-run under a new RUN_ID with more "
+                            "memory so the fine grid fits"],
+                "recommendation": ("report both volumes; the radius itself is "
+                                   "unaffected because containment is measured on "
+                                   "C-alpha distances, not on the voxel grid. The "
+                                   "voxel edge is never tuned toward a volume."),
+            })
+
+
+def params_detection_floor() -> float:
+    from .api import DETECTION_SCALE_FLOOR_A
+    return DETECTION_SCALE_FLOOR_A
+

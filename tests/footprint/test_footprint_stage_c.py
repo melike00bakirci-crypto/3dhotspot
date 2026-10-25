@@ -58,7 +58,7 @@ def test_per_radius_voxel_grids_are_not_stored_but_are_regenerable(phase_c_run):
 
 def test_scan_records_the_full_decision_trace(phase_c_run):
     ctx, _, result = phase_c_run
-    rows = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS" / "r_fp_scan.tsv")
+    rows = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS" / "footprint_descriptors.tsv")
     assert len(rows) == len(result.solution.domain.grid)
     assert sum(1 for r in rows if r["selected"]) == 1
     for row in rows:
@@ -66,15 +66,29 @@ def test_scan_records_the_full_decision_trace(phase_c_run):
         assert row["volume_A3"] is not None
 
 
-def test_merge_events_carry_necks_and_a_connection_type(phase_c_run):
+def test_merge_scales_are_reported_and_no_merge_event_can_exist(phase_c_run):
+    """[DECISION-RFP-CONTAINMENT-0001] A merge event is a change between two radii.
+
+    Containment evaluates ONE radius, so there is no previous state to merge against
+    and merge_events.tsv is empty by construction, not by accident — asserted here so
+    a future non-empty file is treated as a fault rather than a finding. What survives
+    is the MST: its edge weights still say at which scale the center set would merge,
+    and they are reported as geometry, never as a constraint on r_fp.
+    """
+    import json
+
     ctx, _, _ = phase_c_run
     rows = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS" / "merge_events.tsv")
-    assert rows, "the fixture is built so that the two clusters merge in-domain"
-    for row in rows:
-        assert row["connection_type"] in ("natural", "artificial", "undetermined")
-        assert row["neck_width_A"] is not None
-        assert row["component_a_center_residues"]
-        assert row["component_b_center_residues"]
+    assert rows == [], "one radius cannot produce a between-radius event"
+
+    domain = json.loads((ctx.full_results / "07_FOOTPRINT_RADIUS"
+                         / "footprint_domain.json").read_text())
+    assert domain["n_grid_points"] == 1, "the domain is the determined radius alone"
+    assert domain["merge_scales_A"], "the MST merge scales are still reported"
+    for edge in domain["mst_edges"]:
+        assert edge["weight_A"] > 0
+        assert edge["merge_scale_A"] == pytest.approx(edge["weight_A"] / 2.0)
+        assert "center_i" in edge and "center_j" in edge
 
 
 def test_all_centers_are_contained_in_the_final_footprint(phase_c_run):
@@ -115,20 +129,34 @@ def test_footprint_api_signature_never_mentions_r_hot():
         assert not any("hot" in p for p in parameters), name
 
 
-def test_r_fp_below_r_hot_runs_end_to_end(tmp_path):
-    """F10 permits r_fp < r_hot; the run must not notice or object."""
+def test_r_fp_is_bounded_above_by_r_hot_and_says_so(tmp_path):
+    """L2, and the end of F10's claim of independence.
+
+    The retired record asserted `r_fp_independent_of_r_hot: True` and
+    `r_fp_bounded_by_r_hot: False`. Both are now false: r_hot defines the evidence
+    set, so every evidence distance is <= r_hot and L2 makes the bound structural.
+    The run must state that dependence rather than deny it — while still never
+    letting the numeric r_hot reach the determination as anything but a boolean.
+    """
     ctx, upstream = synthetic_run(tmp_path, center_ids=two_cluster_centers()[:4],
                                   r_hot=12.0)
     handoff, result = run_phase_c(ctx, upstream=upstream)
 
     assert handoff.payload["hotspot_radius"] == 12.0          # passthrough, unmodified
-    assert handoff.payload["footprint_radius"] < 12.0
-    assert handoff.payload["r_fp_independent_of_r_hot"] is True
+    assert handoff.payload["footprint_radius"] <= 12.0        # L2
+    assert "r_fp_independent_of_r_hot" not in handoff.payload, (
+        "the claim of independence is revoked, not restated")
 
     decision = json.loads((ctx.full_results / "07_FOOTPRINT_RADIUS"
                            / "footprint_decision.json").read_text())
-    assert decision["r_hot_used_in_selection"] is False
-    assert decision["r_fp_bounded_by_r_hot"] is False
+    assert decision["rule"] == "DECISION-RFP-CONTAINMENT-0001"
+    assert decision["selection_performed"] is False
+    assert decision["r_hot_defines_the_evidence_set"] is True
+    assert decision["r_fp_bounded_above_by_r_hot"] is True
+    assert decision["blb_used_in_determination"] is False     # L5
+    # the determination is reconstructible from the record alone
+    assert decision["r_contain_A"] == pytest.approx(result.r_fp)
+    assert decision["r_contain_A"] >= decision["r_contain_exact_A"]
 
 
 # --- the freeze gate ---------------------------------------------------------
@@ -140,7 +168,7 @@ def test_freeze_records_every_scientific_artifact(phase_c_run):
     assert payload["footprint_radius"] == result.r_fp
     assert payload["footprint_code_version"] == result.code_version
     frozen = payload["files_sha256"]
-    assert any("r_fp_scan.tsv" in k for k in frozen)
+    assert any("footprint_descriptors.tsv" in k for k in frozen)
     assert any("footprint_residues.tsv" in k for k in frozen)
     assert any("footprint_occupancy.npz" in k for k in frozen)
     # files written after the gate are excluded, explicitly and auditably
@@ -155,7 +183,7 @@ def test_mutating_a_frozen_artifact_after_the_gate_is_blocking(tmp_path):
     run_phase_c(ctx, upstream=upstream)
     payload = load_freeze(ctx)
 
-    target = ctx.full_results / "07_FOOTPRINT_RADIUS" / "r_fp_scan.tsv"
+    target = ctx.full_results / "07_FOOTPRINT_RADIUS" / "footprint_descriptors.tsv"
     target.write_text(target.read_text() + "# tampered\n")
 
     with pytest.raises(BlockedError) as excinfo:
@@ -174,12 +202,16 @@ def test_stage_directories_must_be_empty_for_the_run(tmp_path):
 
 # --- determinism -------------------------------------------------------------
 
+# [DECISION-RFP-CONTAINMENT-0001] footprint_pareto.json and
+# footprint_objective_matrix.json are gone with the search. The artefacts that now
+# carry the decision are the evidence set — which IS the determination — and the
+# sensitivity band, so determinism is pinned on those instead.
 DECISION_BEARING = [
-    "07_FOOTPRINT_RADIUS/r_fp_scan.tsv",
+    "07_FOOTPRINT_RADIUS/evidence_set.tsv",
+    "07_FOOTPRINT_RADIUS/sensitivity_band.tsv",
+    "07_FOOTPRINT_RADIUS/footprint_descriptors.tsv",
     "07_FOOTPRINT_RADIUS/footprint_admissibility.tsv",
     "07_FOOTPRINT_RADIUS/merge_events.tsv",
-    "07_FOOTPRINT_RADIUS/footprint_pareto.json",
-    "07_FOOTPRINT_RADIUS/footprint_objective_matrix.json",
     "08_FINAL_FOOTPRINT/footprint_residues.tsv",
     "08_FINAL_FOOTPRINT/footprint_geometry.tsv",
     "08_FINAL_FOOTPRINT/footprint_components.tsv",

@@ -7,7 +7,9 @@ import pytest
 from synthetic_footprint import lattice, synthetic_run
 
 from hotspot3d.footprint import export
-from hotspot3d.footprint.api import CenterSet, Universe, build_footprint
+from hotspot3d.footprint.api import (CenterSet, Universe,
+                                     build_footprint_contained)
+from hotspot3d.footprint.inputs import EvidenceRecord, EvidenceSet
 from hotspot3d.footprint.qc import coverage_constraint_failure, evaluate
 from hotspot3d.footprint.stage import run_phase_c
 from hotspot3d.utils.errors import EscalationRequired
@@ -27,32 +29,53 @@ def _sublattice_run(n_side, spacing, every=2):
     return centers, Universe(ids=tuple(ids), coords=coords)
 
 
+def _contained(centers, universe, params, binding_distance_A):
+    """A contained solution whose ``r_fp`` is pinned by one evidence residue.
+
+    [DECISION-RFP-CONTAINMENT-0001] ``r_contain`` is the largest nearest-center
+    distance over the evidence set, so a single record fixes the radius exactly. No
+    ``ReadOnlyHotspotRadius`` is involved: the evidence set is the whole input, and
+    building one by hand is how a test states "the binding distance is D".
+    """
+    evidence = EvidenceSet(
+        records=(EvidenceRecord(residue_id=int(universe.ids[0]),
+                                nearest_center_id=int(centers.ids[0]),
+                                distance_A=float(binding_distance_A),
+                                in_evidence=True),),
+        n_plp_mapped=1)
+    return build_footprint_contained(centers, universe, params, evidence)
+
+
 # --- QC-F1 -------------------------------------------------------------------
 
 def test_qc_f1_marks_inadmissible_but_keeps_every_metric(params):
-    """An excessive-coverage candidate is RETAINED with all metrics and a reason."""
-    # [DECISION-FOOTPRINT-DOMAIN-0001] spacing 4.0 -> 5.5: at the new 5.0 A floor
-    # the old 16 A cube put EVERY radius over QC_F1's 0.50, leaving no passing row.
+    """An excessive-coverage candidate is RETAINED with all metrics and a reason.
+
+    Containment evaluates one radius, so the QC-F1 mix that used to come from a sweep
+    now comes from two solutions with different binding distances. What is being
+    protected is unchanged: failing QC must not delete the candidate or its metrics.
+    """
     centers, universe = _sublattice_run(6, 5.5)
-    solution = build_footprint(centers, universe, params)
+    failing = export.build_scan_rows(_contained(centers, universe, params, 14.0))
+    passing = export.build_scan_rows(_contained(centers, universe, params, 3.0))
 
-    rows = export.build_scan_rows(solution)
-    failing = [r for r in rows if r["excessive_footprint_coverage"]]
-    passing = [r for r in rows if not r["excessive_footprint_coverage"]]
-    assert failing and passing, "fixture must produce a mix of QC-F1 outcomes"
+    assert len(failing) == len(passing) == 1, "containment evaluates one radius"
+    assert failing[0]["excessive_footprint_coverage"]
+    assert not passing[0]["excessive_footprint_coverage"]
 
-    for row in failing:
-        assert row["qc_status"] == "FAIL"
-        assert "QC_F1_EXCESSIVE_COVERAGE" in row["qc_failure_reason"]
-        assert row["coverage_fraction"] > 0.50
-        # nothing is dropped: the full metric set survives rejection
-        for column in ("volume_A3", "surface_area_A2", "n_components",
-                       "compactness", "convexity", "connectivity", "parsimony"):
-            assert row[column] is not None
-        # normalization is defined over the admissible set only (F15)
-        assert row["compactness_normalized"] is None
-
-    assert len(rows) == len(solution.sweep.rows), "no candidate is ever removed"
+    row = failing[0]
+    assert row["qc_status"] == "FAIL"
+    assert "QC_F1_EXCESSIVE_COVERAGE" in row["qc_failure_reason"]
+    assert row["coverage_fraction"] > 0.50
+    # nothing is dropped: the full metric set survives rejection
+    for column in ("volume_A3", "surface_area_A2", "n_components",
+                   "compactness", "convexity", "connectivity", "parsimony"):
+        assert row[column] is not None
+    # the retired search's columns are absent, not NA: it did not run
+    for retired in ("compactness_normalized", "connectivity_normalized",
+                    "stability_normalized", "parsimony_normalized",
+                    "pareto_member", "distance_to_ideal", "boundary_warning"):
+        assert retired not in row, retired
 
 
 def test_qc_f1_threshold_is_read_from_config_and_is_strict(params):
@@ -88,7 +111,8 @@ def test_coverage_constraint_failure_escalates_and_never_widens(tmp_path):
     assert "STOP" in excinfo.value.recommendation
 
     # the coverage curve across the WHOLE domain is on disk before stopping
-    scan = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS" / "r_fp_scan.tsv")
+    scan = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS"
+                    / "footprint_descriptors.tsv")
     assert scan and all(r["excessive_footprint_coverage"] for r in scan)
 
     warnings = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS"
@@ -123,17 +147,23 @@ def test_coverage_constraint_helper_uses_the_configured_fraction(params):
 
 # --- selection ---------------------------------------------------------------
 
-def test_selection_is_not_argmax_compactness(phase_c_run):
-    """A single-metric optimum is exactly what the Pareto machinery must not pick."""
-    _, _, result = phase_c_run
-    solution = result.solution
-    admissible = [r for r in solution.sweep.rows
-                  if solution.verdicts[r.rho].admissible]
-    best_compactness = max(admissible, key=lambda r: r.compactness).rho
-    assert solution.r_fp is not None
-    assert solution.r_fp != best_compactness, (
-        "compactness rises monotonically with rho for a union of balls; selecting "
-        "its argmax would mean parsimony was not doing its job")
+def test_no_geometric_descriptor_participates_in_the_determination(params):
+    """`footprint_rule.geometric_metrics_decide: false`, asserted on behaviour.
+
+    The retired search picked the radius whose objective vector sat nearest the utopia
+    point, so compactness and its three companions decided. Under containment the
+    radius follows the binding distance and nothing else: the same centers and the same
+    universe — hence the same geometry, the same compactness ordering — give three
+    different radii purely because the evidence set says so.
+    """
+    centers, universe = _sublattice_run(6, 5.5)
+    for distance_A, expected in ((6.2, 6.5), (8.1, 8.5), (9.0, 9.0)):
+        solution = _contained(centers, universe, params, distance_A)
+        assert solution.domain.grid == (expected,), distance_A
+        assert solution.containment["r_contain_A"] == expected
+        assert solution.containment["r_contain_exact_A"] == distance_A
+        # the determination is upstream of QC, so it holds whether or not QC passes
+        assert solution.domain.rho_min == solution.domain.rho_max == expected
 
 
 def test_parsimony_prevents_a_protein_sized_blob(phase_c_run):
@@ -148,22 +178,35 @@ def test_selected_radius_is_on_grid_and_inside_the_domain(phase_c_run):
     assert domain.rho_min <= result.r_fp <= domain.rho_max
 
 
-def test_dominated_and_inadmissible_candidates_are_retained(phase_c_run):
-    import json
+def test_the_sensitivity_band_retains_every_radius_it_evaluated(phase_c_run):
+    """The retention property, relocated to the artefact that now carries the trace.
 
-    ctx, _, _ = phase_c_run
-    payload = json.loads((ctx.full_results / "07_FOOTPRINT_RADIUS"
-                          / "footprint_pareto_dominated.json").read_text())
-    for entry in payload["dominated"]:
-        assert entry["dominated_by"], "a dominated candidate keeps its dominators"
-        assert entry["objectives"]
+    There is no Pareto front to keep dominated members of. What a reader needs instead
+    is the band: the footprint at every radius from the resolution floor up to r_hot,
+    with the determined one marked and the others kept rather than pruned to make the
+    answer look inevitable.
+    """
+    ctx, _, result = phase_c_run
+    band = read_tsv(ctx.full_results / "07_FOOTPRINT_RADIUS" / "sensitivity_band.tsv")
+
+    assert band, "the band is written on every completed run"
+    selected = [r for r in band if str(r["selected"]).upper() == "TRUE"]
+    assert len(selected) == 1, "exactly one row is the determined radius"
+    assert float(selected[0]["r_fp_A"]) == pytest.approx(result.r_fp)
+
+    radii = [float(r["r_fp_A"]) for r in band]
+    assert radii == sorted(radii), "ascending, so the trend is readable"
+    assert len(set(radii)) == len(radii), "no radius is listed twice"
+    for row in band:
+        for column in ("n_residues", "n_components", "n_plp", "n_blb", "coverage"):
+            assert row[column] is not None, column
 
 
 def test_admissibility_table_is_a_verbatim_projection(phase_c_run):
-    """P1: footprint_admissibility.tsv copies r_fp_scan.tsv; it recomputes nothing."""
+    """P1: footprint_admissibility.tsv copies the descriptors; it recomputes nothing."""
     ctx, _, _ = phase_c_run
     stage = ctx.full_results / "07_FOOTPRINT_RADIUS"
-    scan = {r["r_fp_A"]: r for r in read_tsv(stage / "r_fp_scan.tsv")}
+    scan = {r["r_fp_A"]: r for r in read_tsv(stage / "footprint_descriptors.tsv")}
     projection = read_tsv(stage / "footprint_admissibility.tsv")
 
     assert len(projection) == len(scan)
@@ -184,13 +227,30 @@ def test_objectives_are_the_four_frozen_ones(params):
                                 "smaller_radius")
 
 
-def test_boundary_diagnostic_is_recorded_whether_or_not_it_fires(phase_c_run):
+def test_the_containment_record_is_written_whether_or_not_its_flags_fire(phase_c_run):
+    """The boundary diagnostic's replacement: there is no domain edge to sit near.
+
+    A radius determined by containment cannot be "at the boundary" of anything, so the
+    three BW clauses have no subject. What a reader must still be able to audit is the
+    determination: which residue bound it, by how much the grid rounded it up, whether
+    that residue is a distance outlier, and whether the radius fell below the scale at
+    which the voxel grid can resolve anything. All of it is recorded unconditionally.
+    """
     import json
 
     ctx, _, _ = phase_c_run
     payload = json.loads((ctx.full_results / "07_FOOTPRINT_RADIUS"
-                          / "footprint_domain_boundary_diagnostic.json").read_text())
-    for key in ("BW1_selected_in_band", "BW2_pareto_majority_in_band",
-                "BW3_top3_same_band", "DOMAIN_BOUNDARY_WARNING", "binding_edge"):
-        assert key in payload
-    assert payload["automatic_expansion"] is False
+                          / "footprint_domain.json").read_text())
+    record = payload["containment"]
+    for key in ("r_contain_exact_A", "r_contain_A", "grid_slack_A", "binding_residue",
+                "binding_residue_is_outlier", "outlier_fence_A",
+                "n_plp_mapped", "n_evidence_set", "n_plp_outside_evidence",
+                "fraction_plp_outside_evidence", "binding_nearest_center",
+                "evidence_distance_median_A", "evidence_distance_iqr_A",
+                "coverage_escalated", "detection_scale_below_resolution"):
+        assert key in record, key
+    assert record["r_contain_A"] >= record["r_contain_exact_A"], "rounds UP, never down"
+    assert 0.0 <= record["grid_slack_A"] < payload["step_fp_A"]
+    # the retired search's diagnostic is gone, not merely unread
+    assert not (ctx.full_results / "07_FOOTPRINT_RADIUS"
+                / "footprint_domain_boundary_diagnostic.json").exists()

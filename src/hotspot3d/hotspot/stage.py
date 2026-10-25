@@ -303,6 +303,34 @@ EXPECTED_OUTPUTS: dict[str, list[str]] = {
 }
 
 
+def _ranked_pareto(result) -> list[float]:
+    """Pareto members of the admissible set, ascending by distance-to-utopia."""
+    return sorted((k for k in result.pareto_members if k in result.distances),
+                  key=lambda k: result.distances[k])
+
+
+def _runner_up_radius(result) -> float | None:
+    """[DECISION-RFP-CONTAINMENT-0001] Second-best radius, or None if there is none.
+
+    Reported unconditionally, independently of the near-tie threshold: Stage C
+    derives r_fp from the evidence set that r_hot defines, so the runner-up is part
+    of reading the footprint. It decides nothing.
+    """
+    ranked = _ranked_pareto(result)
+    return float(ranked[1]) if len(ranked) > 1 else None
+
+
+def _runner_up_margin(result) -> float | None:
+    """Relative distance-to-utopia gap between the winner and the runner-up."""
+    ranked = _ranked_pareto(result)
+    if len(ranked) < 2:
+        return None
+    d1, d2 = result.distances[ranked[0]], result.distances[ranked[1]]
+    if d1 <= 0:
+        return None
+    return float(abs(d2 - d1) / d1)
+
+
 def _utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1797,6 +1825,12 @@ class StageB:
             "domain_boundary_warning": bool(sel.boundary.get("DOMAIN_BOUNDARY_WARNING")),
             "global_clustering_flag": self.global_flag,
             "near_tie_flag": bool(sel.result.near_tie),
+            # [DECISION-RFP-CONTAINMENT-0001] Unconditional: Stage C needs the
+            # runner-up and its margin whether or not the near-tie threshold fired,
+            # because r_fp is now derived from the evidence set that r_hot defines.
+            # None only when a single candidate was admissible.
+            "r_hot_runner_up_A": _runner_up_radius(sel.result),
+            "r_hot_runner_up_margin_rel": _runner_up_margin(sel.result),
             "loo_sparse_proportion": loo_at_r.prop_sparse,
             "loo_zero_neighbour_proportion": loo_at_r.prop_zero_neighbour,
             "perm_evidence_zg_at_r_hot": next(
@@ -2225,6 +2259,11 @@ def _finish_underpowered(stage: StageB, up: UnderpoweredResult) -> Handoff:
             getattr(stage, "preflight", None), "limited", False),
         "b_recommended": getattr(getattr(stage, "preflight", None), "B_rec", None),
         "domain_boundary_warning": False,
+        # [DECISION-RFP-CONTAINMENT-0001] handoff_02 requires these, and None is the
+        # honest value on a terminal path: no radius was selected, so there is no
+        # runner-up and no margin. Omitting them instead would fail the handoff
+        # contract and turn an UNDERPOWERED or NEGATIVE gene into a BLOCKED one.
+        "r_hot_runner_up_A": None, "r_hot_runner_up_margin_rel": None,
         "global_clustering_flag": getattr(stage, "global_flag", "NA"),
         "near_tie_flag": False, "loo_sparse_proportion": None,
         "loo_zero_neighbour_proportion": None,
@@ -2343,6 +2382,11 @@ def _finish_negative(stage: StageB, neg: NegativeResult) -> Handoff:
             getattr(stage, "preflight", None), "limited", False),
         "b_recommended": getattr(getattr(stage, "preflight", None), "B_rec", None),
         "domain_boundary_warning": False,
+        # [DECISION-RFP-CONTAINMENT-0001] handoff_02 requires these, and None is the
+        # honest value on a terminal path: no radius was selected, so there is no
+        # runner-up and no margin. Omitting them instead would fail the handoff
+        # contract and turn an UNDERPOWERED or NEGATIVE gene into a BLOCKED one.
+        "r_hot_runner_up_A": None, "r_hot_runner_up_margin_rel": None,
         "global_clustering_flag": getattr(stage, "global_flag", "NA"),
         "near_tie_flag": False, "loo_sparse_proportion": None,
         "loo_zero_neighbour_proportion": None,

@@ -102,11 +102,28 @@ HANDOFF_REQUIRED_KEYS: dict[str, list[str]] = {
         "domain_boundary_warning", "global_clustering_flag", "near_tie_flag",
         "loo_sparse_proportion", "loo_zero_neighbour_proportion",
         "sensitivity_summary", "code_version",
+        # [DECISION-RFP-CONTAINMENT-0001] Written UNCONDITIONALLY, not only when the
+        # near-tie flag fires. Stage C's evidence set is defined by r_hot, so how
+        # close r_hot was to being a different number is part of reading r_fp. The
+        # margin is the number that carries the fragility: the radius alone says "it
+        # could have been 10.0", the margin says "it was a coin flip" (KCNA2:
+        # 0.178%). Reporting only — neither value enters any decision.
+        "r_hot_runner_up_A", "r_hot_runner_up_margin_rel",
     ],
     "handoff_03": [
+        # [DECISION-RFP-CONTAINMENT-0001] near_tie_flag and domain_boundary_warning
+        # are gone: with one candidate there is no runner-up to be near and no domain
+        # edge to sit on. The containment record replaces them.
         "hotspot_radius", "footprint_radius", "n_components", "volume_A3",
         "surface_area_A2", "n_footprint_residues", "coverage", "voxel_h",
-        "near_tie_flag", "domain_boundary_warning", "code_version",
+        "code_version",
+        "r_contain_A", "r_contain_exact_A", "grid_slack_A",
+        "n_plp_mapped", "n_evidence_set", "n_plp_outside_evidence",
+        "fraction_plp_outside_evidence",
+        "binding_residue", "binding_residue_is_outlier",
+        "detection_scale_below_resolution", "coverage_escalated",
+        "r_hot_runner_up_A", "r_hot_runner_up_margin_rel",
+        "r_contain_at_runner_up_A",
     ],
     "handoff_04": [
         "footprint_code_version", "robustness_profile", "n_S", "K_MAX",

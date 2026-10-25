@@ -20,7 +20,7 @@ from pathlib import Path
 
 import numpy as np
 
-from ..footprint.api import (FOOTPRINT_API_VERSION, build_footprint,
+from ..footprint.api import (FOOTPRINT_API_VERSION, build_footprint_contained,
                              footprint_code_version, reconstruct_at)
 from ..footprint.freeze import (load_freeze, verify_freeze, verify_upstream_unchanged)
 from ..footprint.staging import stage_files, write_stage_manifest
@@ -42,7 +42,7 @@ from .compare import GEOMETRY_FIELDS
 from .design import build_design, k_max
 from .params import RobustnessParams
 from .parallel import run_iterations as run_iterations_parallel
-from .perturb import FAILURE_COLUMNS
+from .perturb import CONTAINMENT_DIAGNOSTIC_FIELDS, FAILURE_COLUMNS
 from .sensitivity import (CENTER_SENSITIVITY_COLUMNS, RECURRENCE_DEFINITION,
                           center_influence)
 
@@ -53,7 +53,7 @@ PERTURBATION_BASE_COLUMNS = [
     "iteration_index", "k", "removed_center_residues", "n_removed", "n_remaining",
     "enumeration_mode", "seed_context", "status", "outcome_type", "failure_reason",
     "robustness_r_fp",
-]
+] + CONTAINMENT_DIAGNOSTIC_FIELDS
 # Per-iteration wall time is recorded in provenance (agent §13), NOT here: a
 # timing column would make an otherwise byte-reproducible decision table differ
 # between identical runs, and determinism is asserted by re-run.
@@ -230,7 +230,12 @@ def run_phase_d(ctx: RunContext, *, phase_c, handoff_03: Handoff) -> Handoff:
         original_state=original_state, original_residues=original_residues,
         r_fp_original=phase_c.r_fp, plp=up.cohort_plp, blb=up.cohort_blb,
         r_hot_value=up.r_hot.value_for_coverage_query,
-        undefined_mcc=params.undefined_mcc)
+        undefined_mcc=params.undefined_mcc,
+        # [DECISION-RFP-CONTAINMENT-0001] The FROZEN Stage C evidence set, for the
+        # per-iteration r_contain diagnostic. Membership is not re-derived here: that
+        # would need r_hot and would mix "residues left the evidence set" into a
+        # number that is meant to isolate "the surviving ones got further away".
+        evidence_residues=tuple(r.residue_id for r in up.evidence.evidence))
 
     planned = design.total_evaluated
     completed = sum(1 for r in results if not r.failed)
@@ -348,10 +353,12 @@ def assert_no_radius_optimization_in_perturb() -> None:
     single run (catches the defect on every run, not only when a particular
     execution happens to exercise it) and rather than a raw text search (which
     would false-positive on this module's own docstring naming
-    ``build_footprint`` in prose). ``build_footprint`` (the domain-derivation ->
-    multi-scale-sweep -> QC -> Pareto -> distance-to-ideal selection entry point)
-    must be neither imported nor called anywhere in ``perturb.py``'s actual code;
-    only ``reconstruct_at`` (no selection) may be.
+    ``build_footprint`` in prose). Neither the retired ``build_footprint`` nor
+    ``build_footprint_contained`` may be imported or called in ``perturb.py``:
+    DECISION-RFP-CONTAINMENT-0001 makes r_fp a function of the center set, so
+    calling the determination inside an iteration would recompute r_contain on the
+    PERTURBED set. r_fp is held fixed at the unperturbed value, exactly as
+    DECISION-STAGE-D-FIXED-RFP-0001 requires. Only ``reconstruct_at`` may be used.
     """
     import ast
 
@@ -366,12 +373,16 @@ def assert_no_radius_optimization_in_perturb() -> None:
         elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             called_names.add(node.func.id)
 
-    if "build_footprint" in imported_names or "build_footprint" in called_names:
+    forbidden = {"build_footprint", "build_footprint_contained"}
+    offending = sorted(forbidden & (imported_names | called_names))
+    if offending:
         raise BlockedError(
-            f"BLOCKED — {path.name} imports or calls build_footprint: a Phase D "
+            f"BLOCKED — {path.name} imports or calls {offending}: a Phase D "
             f"iteration must reconstruct only at the frozen Stage C r_fp via "
-            f"reconstruct_at, never re-select r_fp via the full sweep/Pareto "
-            f"selection path (DECISION-STAGE-D-FIXED-RFP-0001)."
+            f"reconstruct_at. Calling the containment determination here would "
+            f"recompute r_contain on the PERTURBED center set and silently vary the "
+            f"radius across iterations "
+            f"(DECISION-STAGE-D-FIXED-RFP-0001, DECISION-RFP-CONTAINMENT-0001)."
         )
     if "reconstruct_at" not in imported_names:
         raise BlockedError(
@@ -425,7 +436,8 @@ def _baseline_reproduction(ctx: RunContext, stage_dir: Path, phase_c, up,
                            fp_params) -> dict:
     """Re-run the frozen API on the FULL center set; require byte-identical output."""
     t0 = time.perf_counter()
-    reproduced = build_footprint(up.centers, up.universe, fp_params)
+    reproduced = build_footprint_contained(up.centers, up.universe, fp_params,
+                                           up.evidence)
     elapsed = time.perf_counter() - t0
 
     original_digest = phase_c.solution.digest(up.universe)
@@ -577,6 +589,12 @@ def _build_profile(results, aggregates, sensitivity, design, params,
                                "inside Phase D. Asserted at run_iteration's "
                                "origin and re-checked here over all results."),
         },
+        # [DECISION-RFP-CONTAINMENT-0001] How much of r_fp rests on one center.
+        # Diagnostic only: the radius used is always the frozen one above. Removing
+        # centers can only push an evidence residue further from its nearest
+        # survivor, so would_be >= r_fp_original; the share of iterations where it
+        # moves is the honest statement of the rule's center-set sensitivity.
+        "containment_sensitivity": _containment_sensitivity(results, phase_c.r_fp),
         "iterations": {"planned": planned, "completed": completed, "failed": failed},
         "evidence_flags": _evidence_flags(design, planned, failed),
         "design": design.as_dict(),
@@ -590,6 +608,34 @@ def _build_profile(results, aggregates, sensitivity, design, params,
         "v2_section8_underpowered_iteration_applicable":
             V2_SECTION8_UNDERPOWERED_APPLICABLE,
         "v2_section8_underpowered_iteration_note": V2_SECTION8_UNDERPOWERED_NOTE,
+    }
+
+
+def _containment_sensitivity(results, r_fp_original: float) -> dict:
+    """Distribution of the radius each iteration WOULD have determined."""
+    would = [r.row.get("robustness_r_fp_would_be") for r in results]
+    would = [float(v) for v in would if v is not None]
+    if not would:
+        return {"evaluated": False,
+                "reason": "no iteration produced a containment diagnostic"}
+    moved = [v for v in would if abs(v - float(r_fp_original)) > 1e-9]
+    below = [v for v in would if v < float(r_fp_original) - 1e-9]
+    return {
+        "evaluated": True,
+        "r_fp_original": float(r_fp_original),
+        "n_iterations_with_diagnostic": len(would),
+        "n_would_differ": len(moved),
+        "fraction_would_differ": round(len(moved) / len(would), 6),
+        "max_would_be_A": max(would),
+        "max_increase_A": round(max(would) - float(r_fp_original), 6),
+        "distribution": distribution_summary(would),
+        "monotonicity_holds": not below,
+        "interpretation": (
+            "r_contain recomputed over the FROZEN Stage C evidence set against each "
+            "iteration's surviving centers, then rounded up to the grid. Reported, "
+            "never reconstructed at: DECISION-STAGE-D-FIXED-RFP-0001 holds the radius "
+            "at the Stage C value for every iteration. A value below r_fp_original "
+            "is impossible by construction and would indicate a fault."),
     }
 
 

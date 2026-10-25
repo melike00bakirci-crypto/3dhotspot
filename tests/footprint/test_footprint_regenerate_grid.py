@@ -88,16 +88,36 @@ def test_regeneration_is_repeatable(phase_c_run):
     assert np.array_equal(runs[0], runs[1])
 
 
-def test_a_radius_outside_the_domain_is_refused(phase_c_run):
-    """The domain is never widened to accommodate a regeneration request."""
-    ctx, _, result = phase_c_run
+@pytest.mark.parametrize("bad", [0.0, -1.0, float("nan"), float("inf")])
+def test_a_radius_that_is_not_a_positive_number_is_refused(phase_c_run, bad):
+    """The only precondition left is that the request names a real sphere."""
+    ctx, _, _ = phase_c_run
     centers_tsv, coords_tsv = _paths(ctx)
-    outside = result.solution.domain.rho_max + 5.0
 
     with pytest.raises(BlockedError) as excinfo:
         regenerate_grid.regenerate(centers_path=centers_tsv, coords_path=coords_tsv,
-                                   radius=outside, config_path=CONFIG)
-    assert "outside the derived II.9 domain" in str(excinfo.value)
+                                   radius=bad, config_path=CONFIG)
+    assert "positive finite number" in str(excinfo.value)
+
+
+def test_a_radius_below_the_retired_floor_is_regenerated_not_refused(phase_c_run):
+    """[DECISION-RFP-CONTAINMENT-0001] The retired domain no longer gates requests.
+
+    The old guard refused anything outside `[5.0, min(0.25*D_max, 25.0)]`. Under
+    containment `r_fp` is free to fall below that floor, and the sensitivity band
+    starts at the resolution floor, so the guard could only reject requests that
+    were in fact valid. 2.0 A is below the retired floor by any configuration.
+    """
+    ctx, result = phase_c_run[0], phase_c_run[2]
+    centers_tsv, coords_tsv = _paths(ctx)
+
+    spec, occupancy, center_ids = regenerate_grid.regenerate(
+        centers_path=centers_tsv, coords_path=coords_tsv, radius=2.0,
+        config_path=CONFIG)
+
+    assert center_ids == result.inputs.centers.ids
+    assert occupancy.shape == spec.shape
+    assert occupancy.any(), "2 A spheres around real centers are not empty"
 
 
 def test_an_explicit_universe_file_gives_the_same_grid(phase_c_run):

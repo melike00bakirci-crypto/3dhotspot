@@ -69,7 +69,9 @@ def make_context(tmp_path: Path, gene: str = "SYNTH",
 def write_upstream(ctx: RunContext, *, center_ids: list[int],
                    ids: list[int], coords: np.ndarray,
                    r_hot: float = 8.0,
-                   n_plp: int = 40, n_blb: int = 40) -> Handoff:
+                   n_plp: int = 40, n_blb: int = 40,
+                   plp_ids: list[int] | None = None,
+                   blb_ids: list[int] | None = None) -> Handoff:
     """Materialize the canonical Stage A / Stage B artifacts this stage consumes."""
     dir_02 = ctx.stage_dir("02_CLINVAR")
     dir_03 = ctx.stage_dir("03_STRUCTURE_QC")
@@ -91,8 +93,11 @@ def write_upstream(ctx: RunContext, *, center_ids: list[int],
     center_coords = coords[[ids.index(c) for c in center_ids]]
     d = np.linalg.norm(coords[:, None, :] - center_coords[None, :, :], axis=2).min(axis=1)
     order = np.argsort(d, kind="stable")
-    plp = [ids[i] for i in order[:n_plp]]
-    blb = [ids[i] for i in order[-n_blb:]]
+    # The default places P/LP nearest the centers, which is what makes lemma L1 of
+    # DECISION-RFP-CONTAINMENT-0001 hold by construction. A test that needs to probe
+    # the L1 guard itself has to state the cohort instead of inheriting it.
+    plp = list(plp_ids) if plp_ids is not None else [ids[i] for i in order[:n_plp]]
+    blb = list(blb_ids) if blb_ids is not None else [ids[i] for i in order[-n_blb:]]
     write_tsv(dir_02 / "classified_cohort.tsv",
               [{"residue_index": r, "class": "PLP", "n_records": 3} for r in sorted(plp)]
               + [{"residue_index": r, "class": "BLB", "n_records": 2}
@@ -143,11 +148,30 @@ def write_upstream(ctx: RunContext, *, center_ids: list[int],
 def synthetic_run(tmp_path: Path, *, n_side: int = 6, spacing: float = 5.5,
                   center_ids: list[int] | None = None, r_hot: float = 8.0,
                   gene: str = "SYNTH", run_id: str = FIXED_RUN_ID,
-                  n_plp: int = 40, n_blb: int = 40
+                  n_plp: int = 40, n_blb: int = 40,
+                  plp_ids: list[int] | None = None,
+                  blb_ids: list[int] | None = None
                   ) -> tuple[RunContext, Handoff]:
     ctx = make_context(tmp_path, gene=gene, run_id=run_id)
     ids, coords = lattice(n_side, spacing)
     centers = center_ids if center_ids is not None else two_cluster_centers(n_side)
     handoff = write_upstream(ctx, center_ids=centers, ids=ids, coords=coords,
-                             r_hot=r_hot, n_plp=n_plp, n_blb=n_blb)
+                             r_hot=r_hot, n_plp=n_plp, n_blb=n_blb,
+                             plp_ids=plp_ids, blb_ids=blb_ids)
     return ctx, handoff
+
+
+def residues_beyond(ids, coords, center_ids, radius_A, k):
+    """The ``k`` residues furthest from every center, all of them beyond ``radius_A``.
+
+    Used to construct the one cohort containment cannot produce a radius from: an
+    evidence set with no members.
+    """
+    center_coords = coords[[ids.index(c) for c in center_ids]]
+    d = np.linalg.norm(coords[:, None, :] - center_coords[None, :, :],
+                       axis=2).min(axis=1)
+    order = np.argsort(-d, kind="stable")[:k]
+    assert d[order].min() > radius_A, (
+        f"fixture cannot place {k} residues beyond {radius_A} A; "
+        f"closest chosen is {d[order].min():.2f} A")
+    return [ids[i] for i in order]
