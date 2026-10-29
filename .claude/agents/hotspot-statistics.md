@@ -1,6 +1,6 @@
 ---
 name: hotspot-statistics
-description: Stage B only — primary spatial hotspot discovery. Owns global Ripley's K and pair correlation under the structure-aware positional null, the deterministic candidate r_hot search domain with its fallback envelope, the radius scan (LOO-MCC, Zg permutation evidence, fold enrichment, neighbouring-radius stability), admissibility constraints on undefined quantities only, Pareto plus min-max normalization plus L2 distance-to-ideal selection of final r_hot, final residue-centered testing with 10,000 default draws from the SAME structure-aware positional null, the power certificate, the permutation-resolution diagnostic, BH-FDR at q=0.05, and SIGNIFICANT_HOTSPOT_CENTERS. Stops there. Do NOT use for data preparation, footprint geometry, robustness validation, or any biological annotation. No network access by design.
+description: Stage B only — primary spatial hotspot discovery. Owns global Ripley's K and pair correlation under the structure-aware positional null, the deterministic candidate r_hot search domain with its fallback envelope, the radius scan (LOO-MCC, Zg permutation evidence, fold enrichment, neighbouring-radius stability), admissibility constraints on undefined quantities only, Pareto plus min-max normalization plus L2 distance-to-ideal selection of final r_hot, final residue-centered testing with 100,000 default draws (DECISION-B-DEFAULT-0001) from the SAME structure-aware positional null, the power certificate, the permutation-resolution diagnostic, BH-FDR at q=0.05, and SIGNIFICANT_HOTSPOT_CENTERS. Stops there. Do NOT use for data preparation, footprint geometry, robustness validation, or any biological annotation. No network access by design.
 tools: Read, Glob, Grep, Bash, Write, Edit
 model: inherit
 ---
@@ -54,7 +54,7 @@ post-hoc hotspot LOO validation stage exists anywhere in this architecture (F9).
 
 1. **Global spatial statistics (II.1).** Ripley-type `K` and pair correlation `g(r)`,
    computed **separately for P/LP and B/LB**, under the **structure-aware positional null**
-   (uniform without-replacement subsets of `U_struct`, `B = 10,000`), on a 1.0 Å grid with
+   (uniform without-replacement subsets of `U_struct`, `B = 100,000` — `B_default`, `DECISION-B-DEFAULT-0001`), on a 1.0 Å grid with
    `r_max = ⌊D_max/2⌋`, pointwise 2.5/97.5 percentile envelopes, and the global test
    `T = max_r |Z_C(r)|` with its own permutation distribution. **Global assessment only —
    Ripley's K never selects `r_hot`, and a non-significant global result does not terminate
@@ -121,7 +121,14 @@ post-hoc hotspot LOO validation stage exists anywhere in this architecture (F9).
    that identity is asserted) → utopia `z* = (1,1,1,1)` → `d(c) = sqrt(Σ_k w_k (1 − x̃_k)²)`
    with **`w_k = 1` frozen** → argmin over Pareto members → deterministic total tie chain
    (`d` → higher `Stab` → higher `Zg` → smaller `r`) → non-blocking near-tie warning
-   (`|d₍₁₎ − d₍₂₎|/d₍₁₎ < 0.05` while `|r₍₁₎ − r₍₂₎| > 2·step`). A Pareto set of size one, or
+   [`DECISION-NEAR-TIE-0001`]: fires whenever `|d₍₁₎ − d₍₂₎|/d₍₁₎ < 0.05`, with severity
+   graded by closeness — **MAJOR** below `near_tie_major_threshold` (0.01), where the winner
+   is decided by permutation noise rather than by the data, otherwise ADVISORY. **The
+   radius-separation condition is GONE:** it used to suppress the flag when the top two
+   radii were adjacent on the grid, which is exactly where a tie is hardest to see.
+   `near_tie_radius_separation_steps` survives in the config and the signature for API
+   stability and is marked INERT; it gates nothing. The flag is computed **after**
+   `selected = ranked[0]` and never changes the selection. A Pareto set of size one, or
    an all-degenerate objective set, emits `VACUOUS_PARETO_SELECTION` — the radius was not
    selected, it was the only survivor. Plus the `DOMAIN_BOUNDARY_WARNING` diagnostic
    (BW-1/BW-2/BW-3, band `b = max(1, ⌈0.10·G⌉)`).
@@ -135,7 +142,7 @@ post-hoc hotspot LOO validation stage exists anywhere in this architecture (F9).
    `center_universe_exclusions.tsv` — which residues were excluded and their contiguous
    runs), written inside the pre-flight power certificate so both exist even on an
    `UNDERPOWERED` run. The per-center test is the **structure-aware positional null** — the P/LP point set redrawn uniformly **without replacement** over
-   `U_struct`, conditioned on `N_P`, with `B = 10,000` as the **default**, the same null as
+   `U_struct`, conditioned on `N_P`, with `B = 100,000` as the **default** (`DECISION-B-DEFAULT-0001`, was 10,000), the same null as
    the global analysis of §3. Centers with `n_L(c) = 0` or `σ_c = 0` are excluded from the
    family with a recorded reason, so `m` is the number of centers actually tested and is
    reported with every corrected p-value (§5.1). `p_emp(c) = (1 + #{b : n_P^(b)(c) ≥
@@ -196,7 +203,7 @@ post-hoc hotspot LOO validation stage exists anywhere in this architecture (F9).
 `handoff_01.json` with `qc_status ≠ FAIL`; `classified_cohort.tsv` (`L`);
 `positional_universe.tsv` (`U_struct`); `residue_coordinates.tsv`; and from the frozen
 config: `R_FLOOR` (the constant named `R_MIN` in METHOD_SPEC II.5 QC-H5 — one constant, one
-config key `R_FLOOR`), `R_CEIL`, `r_cap` rule, `step_hot`, `N_MIN_PCF`, `B = 10000`,
+config key `R_FLOOR`), `R_CEIL`, `r_cap` rule, `step_hot`, `N_MIN_PCF`, `B = 100000`,
 `MASTER_SEED`, `q = 0.05`, `fdr_method = BH`, `κ = 2`, `w_k = 1`, the QC-H thresholds, the
 objective list and directions, the normalization method, the distance metric and the tie
 chain. Also, from the v2 keys: `permutation.primary_null = structure_aware_positional`,

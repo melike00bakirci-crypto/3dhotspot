@@ -1,6 +1,6 @@
 ---
 name: footprint-robustness
-description: Stages C and D only — independent footprint construction followed by geometric footprint robustness. Owns the independent r_fp search domain and optimization (MST merge scales, occupancy-grid multi-scale sweep, components, merge events, artificial bridging, compactness/convexity/connectivity/expansion-rate, ARI stability), the coverage > 0.50 QC rule, Pareto plus distance-to-ideal selection of r_fp, the final FP_original, then perturbation of the SIGNIFICANT_HOTSPOT_CENTERS set, FP_iteration reconstruction with the frozen footprint methodology only, and geometric robustness profiling. Does NOT re-run Ripley's K, pair correlation, the radius scan, r_hot selection, permutation testing or FDR. Never defines or alters hotspot centers, r_hot or significance, and never performs biological annotation. No network access by design.
+description: Stages C and D only — independent footprint construction followed by geometric footprint robustness. Owns the containment determination of r_fp per DECISION-RFP-CONTAINMENT-0001 — the evidence set E of P/LP residues within r_hot of a significant centre, r_contain as the maximum nearest-centre distance over E rounded up to step_fp_A, the geometric descriptors measured at that one radius (volume, components, compactness, convexity, connectivity, bridging), the coverage > 0.50 QC rule, the final FP_original, then perturbation of the SIGNIFICANT_HOTSPOT_CENTERS set, FP_iteration reconstruction with the frozen footprint methodology only, and geometric robustness profiling. Does NOT re-run Ripley's K, pair correlation, the radius scan, r_hot selection, permutation testing or FDR. Never defines or alters hotspot centers, r_hot or significance, and never performs biological annotation. No network access by design.
 tools: Read, Glob, Grep, Bash, Write, Edit
 model: inherit
 ---
@@ -50,37 +50,50 @@ Two roles, executed strictly in sequence and separated by a hard internal freeze
 
 ### Phase C — footprint construction and `r_fp` selection
 
-1. **Domain (II.9), from hotspot-center geometry only.** Pairwise Cα distances among `S`;
-   the complete set of critical merge scales `{w_k/2}` over the edges of the Euclidean
-   **minimum spanning tree** of `S`; `ρ_all = max_k w_k/2`; `ρ_min = 3.0 Å`;
-   `ρ_max = min(1.25·ρ_all, 0.25·D_max, 20.0 Å)`; uniform `step_fp = 0.5 Å`. `|S| = 1` → MST
-   empty → `ρ_max = min(0.25·D_max, 20.0)`, recorded as a special case. `ρ_min > ρ_max` →
-   inadmissible → negative-result branch. **Merge radii inform `ρ_max` and are reported as
-   events; they never determine `r_fp` (F10).**
-2. **Multi-scale sweep (II.8).** Occupancy grid over the bounding box of `S` expanded by
-   `ρ_max + 2 Å`; voxel edge `h = 0.5 Å` with automatic fallback to `h = 1.0 Å` above 1e8
-   voxels (recorded). **One Euclidean distance transform, reused across all ρ.** Per radius:
+1. **Evidence set, then containment [DECISION-RFP-CONTAINMENT-0001].** `r_fp` is
+   **DETERMINED, not searched.** The evidence set `E` is the P/LP residues lying within
+   `r_hot` of a member of `S`; `r_contain_exact` is the maximum nearest-significant-centre
+   distance over `E`; `r_fp = r_contain` is that value **rounded UP** to the `step_fp_A`
+   grid (0.5 Å) — the direction is a correctness condition, not a convention, because
+   rounding down could exclude a member of `E`. The domain grid therefore has **exactly one
+   member**. Lemmas L1–L5 hold by construction: `E` non-empty (L1), `r_fp ≤ r_hot` (L2),
+   `E ⊆ FP` (L3), minimality (L4), B/LB independence (L5). `r_contain = 0` is a known
+   open case (weakness 6; observed on CASQ2) — the centres ARE the pathogenic residues and
+   a zero-radius union has no volume.
+   **The retired machinery:** the MST merge scales, `ρ_all`, `ρ_max = min(1.25·ρ_all,
+   0.25·D_max, 20.0)` and the independent `[ρ_min, ρ_max]` search domain are **gone**.
+   `build_footprint` raises and directs callers to `build_footprint_contained`. There is no
+   footprint search domain and therefore no `DOMAIN_BOUNDARY_WARNING` for `r_fp`; the
+   containment record and the evidence set replace them. F10 (the prohibition on `r_hot`
+   entering the footprint determination) is **revoked** — `r_hot` now defines `E` by
+   design — but the `ReadOnlyHotspotRadius` type-level interlock is retained and narrowed
+   to the single method `derive_evidence_set`. Never remove that wrapper or convert it to
+   a plain float.
+2. **Geometry at the determined radius (II.8).** Occupancy grid over the bounding box of
+   `S` expanded by `r_fp + bbox_padding_A`; voxel edge `h = 0.5 Å` with automatic fallback
+   to `h = 1.0 Å` above 1e8 voxels (recorded as `VOXEL_RESOLUTION_FALLBACK`). Voxel index
+   assignment carries a `1e-9` tolerance so a point exactly on a cell boundary does not
+   fall to the lower cell (`DECISION-VOXEL-TIE-0001`). Computed at that one radius:
    volume `V`, 6-connectivity components `n_comp`, marching-cubes surface `A`, compactness
    `Ψ = (36πV²)^(1/3)/A`, convexity `X = V/V_hull`, connectivity `C = V_largest/V_total`,
-   expansion rate `ER`, artificial bridging `N_bridge`/`BI` via relative erosion at `0.15ρ`,
-   merge events with participating components and neck widths, abrupt-transition flags
-   (`Δn_comp ≥ 2` or `ER ≥ 2 × median ER`), ARI-based `Stab_fp`, covered residues `R(ρ)` and
-   `coverage = |R(ρ)|/|U_struct|`. The sweep is **ascending with real previous-radius
-   diffs** — evolution is tracked, not recomputed in isolation.
-3. **QC/admissibility (II.10).** QC-F1 `coverage(ρ) ≤ 0.50` (`EXCESSIVE_FOOTPRINT_COVERAGE`
-   on failure); QC-F2 `BI(ρ) ≤ 0.50`; QC-F3 `V(ρ) > 0` and mesh extraction succeeded;
-   QC-F4 `ρ ∈ [ρ_min, ρ_max]` (assertion); QC-F5 every center of `S` contained in the
-   footprint (assertion — a violation is a computational fault). Inadmissible candidates keep
-   **all** computed metrics and a rejection reason. **The 0.50 threshold is never relaxed.**
-4. **Selection.** Four primary Pareto objectives, all maximizing: `Ψ` compactness, `C`
-   connectivity, `Stab_fp` stability, `P = 1 − coverage` parsimony. Convexity, `ER`,
-   `n_comp`, `N_bridge`, merge events and per-component residue membership are **descriptive,
-   not objectives**. Admissible set → Pareto → min–max normalization over the admissible set
-   → utopia `(1,1,1,1)` → equally weighted (`w_k = 1`) **L2** distance → argmin over Pareto
-   members → tie chain `Stab_fp` → `Ψ` → smaller ρ → non-blocking near-tie warning.
-   `DOMAIN_BOUNDARY_WARNING` computed identically over the `[ρ_min, ρ_max]` grid (BW-1/BW-2/
-   BW-3, band `b = max(1, ⌈0.10·G⌉)`), recording which edge binds: `ρ_min`, the MST-derived
-   `1.25·ρ_all`, the `0.25·D_max` cap, or the 20 Å ceiling.
+   artificial bridging `N_bridge`/`BI` via relative erosion at `0.15·r_fp`, covered
+   residues `R` and `coverage = |R|/|U_struct|`.
+   **These are DESCRIPTORS, not objectives.** Nothing is swept and nothing is compared
+   across radii, because there is only one radius.
+3. **QC/admissibility (II.10).** QC-F1 `coverage ≤ 0.50` (`EXCESSIVE_FOOTPRINT_COVERAGE`
+   on failure); QC-F2 `BI ≤ 0.50`; QC-F3 `V > 0` and mesh extraction succeeded; QC-F5
+   every center of `S` contained in the footprint (assertion — a violation is a
+   computational fault). **A QC failure is terminal, not a prompt to pick another radius:**
+   there is no alternative candidate. Coverage failure escalates; it NEVER shrinks the
+   radius. The 0.50 threshold is never relaxed.
+4. **Selection is a formality.** The shared `utils.multiobjective` machinery still runs —
+   Pareto, min–max normalisation, utopia, L2 — but over a **one-point domain**, so it
+   cannot choose anything and `VACUOUS_PARETO_SELECTION` is the expected diagnostic. Do
+   **not** read the objective vector as having selected `r_fp`; containment did. The
+   decision record must state `r_hot_defines_the_evidence_set: True` and
+   `r_fp_bounded_above_by_r_hot: True`, and must NOT carry `objectives`, `utopia_point`,
+   `distance_to_ideal`, `n_pareto_members`, `tie_chain_applied` or `near_tie_flag` for
+   `r_fp`.
 5. Export `FP_original` in mesh, voxel, residue-list and PDB/mmCIF form, plus every
    per-radius intermediate. Expose a **frozen, versioned, deterministic footprint API** in
    `src/hotspot3d/footprint/` with a recorded `code_version`.
@@ -103,11 +116,12 @@ Two roles, executed strictly in sequence and separated by a hard internal freeze
    overall `Σ_k T(k)` versus total evaluated.
 9. **Per-iteration execution — fixed-radius footprint reconstruction only
    [DECISION-STAGE-D-FIXED-RFP-0001, AUTHORIZED_BY=user].** `S_iter` → reconstruction at
-   the FROZEN Stage C `r_fp` → `FP_iter`. No per-iteration domain re-derivation for
-   selection purposes, multi-scale sweep, QC-driven admissibility, or Pareto /
-   distance-to-ideal re-selection. Radius selection is Stage C's job, performed once on
-   the full data; Phase D answers only "does the SELECTED footprint survive loss of its
-   supporting centers," never "would Stage C have chosen a different radius here." See
+   the FROZEN Stage C `r_fp` → `FP_iter`. No per-iteration containment re-derivation, no
+   QC-driven admissibility and no re-determination of any kind. The radius is Stage C's
+   output, determined once on the full data; Phase D answers only "does the DETERMINED
+   footprint survive loss of its supporting centers," never "would containment have given
+   a different radius here." The per-iteration `r_contain` IS computed, but as a
+   DIAGNOSTIC only (`containment_diagnostic`), and never feeds back into the geometry. See
    `docs/decisions/DECISION-STAGE-D-FIXED-RFP-0001.md`.
 10. **Comparison metrics** (`FP_original` vs `FP_iteration`, computed for the sole
     fixed-`r_fp` reconstruction): Jaccard and Dice on covered-residue sets (resolution-
@@ -162,9 +176,9 @@ Two roles, executed strictly in sequence and separated by a hard internal freeze
 `significant_hotspot_centers.tsv`; `hotspot_covered_residues.tsv`;
 `hotspot_classified_variants.tsv`; `residue_coordinates.tsv`; `positional_universe.tsv`;
 `classified_cohort.tsv`; `structures/structure_with_plddt.cif`; and from the frozen config:
-`ρ_min`, the `ρ_max` rule constants, `step_fp`, voxel `h` and its fallback rule, the erosion
-fraction `0.15`, the QC-F thresholds, the objective list and directions, the normalization
-method, the distance metric, the tie chain, `N_CAP`, the `K_MAX` rule, the preservation
+`step_fp_A` (the upward-rounding grid for `r_contain`), `bbox_padding_A`, voxel `h` and its
+fallback rule, the erosion fraction `0.15`, the QC-F thresholds, the descriptor list,
+`N_CAP`, the `K_MAX` rule, the preservation
 thresholds `0.50` / `0.70`, the bootstrap settings, and `MASTER_SEED`. `r_hot` and `r_fp` are
 **read-only constants** wherever they appear.
 
@@ -200,16 +214,18 @@ thresholds `0.50` / `0.70`, the bootstrap settings, and `MASTER_SEED`. `r_hot` a
 
 1. Validate inputs; freeze and hash config; log the immutable center set and its hash; derive
    and record seeds by context string (II.12).
-2. Build the domain (II.9): MST, merge scales, `ρ_all`, `ρ_min`, `ρ_max`, uniform grid.
-3. Compute **one** Euclidean distance transform on the occupancy grid and reuse it across all
-   ρ.
-4. Sweep ascending, maintaining previous-radius state: components, volume, surface,
-   descriptors; then diff against `ρ − step` for merge events, neck classification and
-   natural-vs-artificial connection, `ΔV`, expansion rate, `Δn_comp` and ARI. **Persist
-   per-radius component membership.**
-5. Apply QC/admissibility, retaining every candidate with its metrics and rejection reason.
-6. Objective matrix and correlation diagnostic; Pareto; normalization over the admissible
-   set; utopia; L2 distance; tie chain; near-tie flag; `DOMAIN_BOUNDARY_WARNING`.
+2. Derive the evidence set `E` from `S` and `r_hot`; compute `r_contain_exact`; round up
+   to `step_fp_A` to obtain `r_fp`. Record the binding residue, `grid_slack_A`, `|E|` and
+   the count of P/LP residues outside `E`.
+3. Build the occupancy grid at that one radius and compute **one** Euclidean distance
+   transform.
+4. Measure the geometric descriptors at `r_fp`. There is no ascending sweep, no
+   previous-radius diff, no merge-event series and no ARI-across-radii term — a single
+   radius has no neighbours to compare against.
+5. Apply QC-F1/F2/F3/F5. A failure is terminal: record it and take the negative branch;
+   never substitute another radius.
+6. Write the containment record (`footprint_domain.json`) and the decision record. The
+   shared selection machinery runs over the one-point domain for provenance only.
 7. Export `FP_original` in all required formats; write `07_*` and `08_*` outputs,
    `handoff_03.json`, stage status and `stage_c_report.md`.
 
@@ -297,13 +313,16 @@ derived seeds must give byte-identical outputs.
 5. `V(ρ)` monotone non-decreasing in ρ.
 6. Every new connection has a measured neck and a natural/artificial classification.
 7. Every stability value derives from the persisted partitions.
-8. Pareto membership independently re-verified.
-9. Dominated and inadmissible candidates retained with raw values, normalized values,
-   distance, QC status and rejection reason; normalized columns `NA` for inadmissible rows.
-10. Normalization over the admissible set; utopia verified `(1,1,1,1)`; `w_k = 1` read from
-    config and logged.
-11. Objective-correlation matrix emitted.
-12. `DOMAIN_BOUNDARY_WARNING` evaluated and recorded whether or not it fired.
+8. Containment re-verified independently: `E ⊆ FP` (L3) and `r_fp ≤ r_hot` (L2) are asserted, not trusted. Pareto membership over the one-point domain is trivially the single candidate.
+9. The determined radius retained with its full descriptor vector, QC status and — on
+   failure — the rejection reason. There is no dominated set to retain.
+10. `r_contain_exact_A`, `grid_slack_A`, the binding residue, `|E|` and the count of P/LP
+    residues outside `E` all recorded. The upward rounding is asserted, not assumed.
+11. `sensitivity_band.tsv` emitted: residue count, components and coverage at radii around
+    `r_fp`, so a reader can see how the footprint would have differed — **reporting only,
+    never a re-selection.**
+12. `r_contain` recomputed against the `r_hot` runner-up and recorded
+    (`r_contain_at_runner_up_A`) — reporting only.
 13. Selected `r_fp` on-grid and inside the domain.
 14. **All significant centers contained in the final footprint** (assertion; a violation is
     an escalation, not a silent fact).
@@ -342,15 +361,19 @@ copied from the TSV), `center_sensitivity.tsv` subsumes `center_influence.tsv`, 
 **`FULL_RESULTS/07_FOOTPRINT_RADIUS/`** — **`r_fp_scan.tsv`** (frozen schema: `schema_version
 r_fp_A volume_A3 surface_area_A2 n_components n_covered_residues coverage_fraction
 compactness convexity connectivity expansion_rate n_bridges bridging_index ari_prev ari_next
-stability parsimony n_merge_events abrupt_transition compactness_normalized
-connectivity_normalized stability_normalized parsimony_normalized qc_status
-qc_failure_reason excessive_footprint_coverage pareto_member distance_to_ideal selected
-boundary_warning`), `footprint_domain.json` (MST edges, merge scales, `ρ_all`, `ρ_min`,
-`ρ_max`, grid, voxel `h` and any fallback), `footprint_admissibility.tsv`,
-`merge_events.tsv`, `footprint_components/r_<R>.tsv` (component membership at every radius —
-retained), `footprint_objective_matrix.json` (with correlation matrix),
-`footprint_pareto.json`, `footprint_pareto_dominated.json`, `footprint_decision.json`,
-`footprint_domain_boundary_diagnostic.json`.
+stability parsimony n_merge_events abrupt_transition qc_status qc_failure_reason
+excessive_footprint_coverage selected` — the four `*_normalized` columns, `pareto_member`,
+`distance_to_ideal` and `boundary_warning` are **removed**), `evidence_set.tsv`
+(`residue_index nearest_center distance_A in_evidence is_binding_residue`),
+`sensitivity_band.tsv` (`r_fp_A n_residues n_components n_plp n_blb coverage selected`),
+`footprint_domain.json` (the **containment record**: `r_contain_A`, `r_contain_exact_A`,
+`grid_slack_A`, binding residue, evidence counts, grid, voxel `h` and any fallback, plus the
+regeneration recipe through `build_sweep_grid`), `footprint_admissibility.tsv`,
+`merge_events.tsv` (header only — a single radius has no merge events),
+`footprint_components/r_<R>.tsv`, `footprint_decision.json`. **Not written:**
+`r_fp_scan.tsv` (renamed to `footprint_descriptors.tsv`),
+`footprint_objective_matrix.json`, `footprint_pareto.json`,
+`footprint_pareto_dominated.json`, `footprint_domain_boundary_diagnostic.json`.
 
 **`FULL_RESULTS/08_FINAL_FOOTPRINT/`** — `footprint_residues.tsv`, `footprint_geometry.tsv`,
 `footprint_components.tsv`, `footprint_occupancy.npz` (final radius only),
@@ -387,9 +410,10 @@ derived metrics** — what the decision rests on — are retained in full.
 `provenance_08_final_footprint.json`, `provenance_09_robustness.json` — **only your own three
 files.**
 
-**Mandatory figures you own:** F7 (component count and volume vs `r_fp`, merge events marked,
-coverage > 0.50 region shaded), F8 (`r_fp` Pareto parallel coordinates + distance-to-ideal,
-selection marked), F9 (Jaccard and Dice distributions with preservation thresholds marked),
+**Mandatory figures you own:** F7 (`F7_footprint_multiscale_evolution`) and F8
+(`F8_footprint_pareto_selection`) — both **legacy filenames** retained for provenance; under
+containment they render the sensitivity band around the determined radius, not a sweep or a
+Pareto front. Do not rename them without a decision record. F9 (Jaccard and Dice distributions with preservation thresholds marked),
 F10 (per-center influence ranking). PNG 300 dpi in FULL_RESULTS.
 
 **Output Contract compliance:** the TSV/JSON conventions, `schema_version`, `NA`-never-blank,
