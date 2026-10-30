@@ -70,8 +70,8 @@ reports `COMPLETED_NEGATIVE`. Neither is repaired into something more publishabl
 Requires Python ≥ 3.10. This project uses [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-git clone git@github-melike:melike00bakirci-crypto/sphare3d.git
-cd sphare3d
+git clone git@github-melike:melike00bakirci-crypto/SPHARE3D.git
+cd SPHARE3D
 
 uv venv
 source .venv/bin/activate

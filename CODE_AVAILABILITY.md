@@ -22,7 +22,7 @@ artefacts named at the end of this file; none of it is re-derived here.
 ## Draft paragraph
 
 > **Code and data availability.** The analysis pipeline (`sphare3d`) is openly available at
-> https://github.com/melike00bakirci-crypto/sphare3d, released under the MIT licence, and
+> https://github.com/melike00bakirci-crypto/SPHARE3D, released under the MIT licence, and
 > archived at Zenodo under DOI [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976).
 > *[PENDING: cite the version DOI of the release that archives commit `8cf973a` (code
 > version `ac7cce0f`), or its renamed equivalent — see the provenance warning above and

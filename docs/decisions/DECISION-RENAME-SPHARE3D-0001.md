@@ -59,7 +59,7 @@ registered and none is planned.
 - display strings raised to `SPHARE3D` where a human reads them: the CLI version banner,
   the run index `<title>`, the two footprint-view headers, the `CITATION.cff` title and
   abstract
-- `git remote set-url origin git@github-melike:melike00bakirci-crypto/sphare3d.git`
+- `git remote set-url origin git@github-melike:melike00bakirci-crypto/SPHARE3D.git`
 
 Nothing under `config/` changed except the word in a comment on line 2.
 
