@@ -128,7 +128,7 @@ def test_real_data_source_handoff_wiring_defects_are_covered():
 # proven to reject run_pipeline() before any run directory is even created —
 # not just B_default, the one case this repository happened to hit.
 
-from hotspot3d.utils.config import FROZEN_ASSERTIONS  # noqa: E402
+from sphare3d.utils.config import FROZEN_ASSERTIONS  # noqa: E402
 
 
 def _wrong_value(frozen_value):
@@ -155,9 +155,9 @@ def test_run_pipeline_rejects_every_frozen_key_before_creating_a_run_root(
     """
     import yaml
 
-    from hotspot3d.orchestration.pipeline import run_pipeline
-    from hotspot3d.utils.config import load_config
-    from hotspot3d.utils.errors import BlockedError
+    from sphare3d.orchestration.pipeline import run_pipeline
+    from sphare3d.utils.config import load_config
+    from sphare3d.utils.errors import BlockedError
 
     section, leaf = dotted_key.split(".", 1) if "." in dotted_key else (dotted_key, None)
     overlay_value = _wrong_value(frozen_value)

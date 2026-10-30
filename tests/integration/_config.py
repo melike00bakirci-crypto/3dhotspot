@@ -22,7 +22,7 @@ real protein with n_S ~ 25").
 
 **Why reducing it is legitimate.** ``robustness.N_CAP`` is a config knob with a
 stated cost model, not a frozen constant: it is absent from ``FROZEN_ASSERTIONS``
-in ``hotspot3d.utils.config``, and ``pipeline.yaml`` marks its neighbours
+in ``sphare3d.utils.config``, and ``pipeline.yaml`` marks its neighbours
 ``FROZEN (A19)/(A20)`` while marking N_CAP itself as a knob. The methodology fixes
 the *design rule* — ``K_MAX = min(n_S - 1, floor(n_S / 2))``, seeded combinatorial
 unranking without replacement, budget allocated equally across remaining levels —
@@ -80,7 +80,7 @@ def load_integration_config(directory: Path):
     Every other parameter — including every FROZEN one — is read from the shipped
     ``config/pipeline.yaml`` unchanged.
     """
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
 
     return load_config(PIPELINE_CONFIG,
                        gene_overlay=write_integration_overlay(directory))

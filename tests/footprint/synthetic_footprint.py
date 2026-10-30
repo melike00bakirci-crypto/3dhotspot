@@ -11,11 +11,11 @@ from pathlib import Path
 
 import numpy as np
 
-from hotspot3d.orchestration.contracts import Handoff
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.hashing import manifest_for
-from hotspot3d.utils.io import write_json, write_text, write_tsv
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.orchestration.contracts import Handoff
+from sphare3d.utils.config import load_config
+from sphare3d.utils.hashing import manifest_for
+from sphare3d.utils.io import write_json, write_text, write_tsv
+from sphare3d.utils.runctx import RunContext
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml"
 FIXED_RUN_ID = "20250101T000000Z_testcfg0_testcode"

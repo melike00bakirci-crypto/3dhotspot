@@ -9,7 +9,7 @@ import itertools
 
 import pytest
 
-from hotspot3d.annotation.rubric import (
+from sphare3d.annotation.rubric import (
     ASSERTABLE,
     Evidence,
     Mechanism,
@@ -17,7 +17,7 @@ from hotspot3d.annotation.rubric import (
     RANK,
     resolve_mechanism,
 )
-from hotspot3d.utils.errors import BlockedError
+from sphare3d.utils.errors import BlockedError
 
 pytestmark = pytest.mark.unit
 

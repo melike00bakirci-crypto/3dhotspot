@@ -68,7 +68,7 @@ import json
 
 import pytest
 
-from hotspot3d.utils.status import OutcomeType, RunStatus
+from sphare3d.utils.status import OutcomeType, RunStatus
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 
@@ -100,7 +100,7 @@ UNDERPOWERED_RUN_ID = "20250101T000000Z_seedE001_seedE002"
 
 @pytest.fixture(scope="module")
 def underpowered_run(tmp_path_factory, config):
-    from hotspot3d.orchestration.pipeline import SourceBundle, run_pipeline
+    from sphare3d.orchestration.pipeline import SourceBundle, run_pipeline
     from tests.fixtures.synthetic_annotation import MockAnnotationSource
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
 

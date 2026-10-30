@@ -31,7 +31,7 @@ def no_network(monkeypatch):
 
 @pytest.fixture(scope="session")
 def config():
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
     return load_config(REPO_ROOT / "config" / "pipeline.yaml")
 
 
@@ -42,7 +42,7 @@ def run_ctx(tmp_path, config):
     The fixed run_id keeps derived seeds identical across test invocations, which
     is what makes the determinism assertions meaningful.
     """
-    from hotspot3d.utils.runctx import RunContext
+    from sphare3d.utils.runctx import RunContext
     return RunContext.create(gene="TESTGENE", config=config,
                              results_root=tmp_path / "results", synthetic=True,
                              run_id="20250101T000000Z_deadbeef_cafebabe")

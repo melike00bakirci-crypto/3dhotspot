@@ -248,7 +248,7 @@ pad — and needs its own decision record plus a re-run to quantify.
   `parsimony`) or their equal weighting — the II.10 guard in `params.py` stands
 - No change to `step_fp_A` (0.5), `dmax_fraction_cap` (0.25), or `bound_below_by_r_hot`
 - No change to merge-scale computation or merge-event reporting
-- No label-aware objective of any kind (see `hotspot3d-secenek-C-tasarim.md`)
+- No label-aware objective of any kind (see `sphare3d-secenek-C-tasarim.md`)
 
 ## Test suite after implementation
 
@@ -276,13 +276,13 @@ every pipeline invocation at run start. The gate behaved exactly as designed.
 ## Files changed
 
 - `config/pipeline.yaml` — `footprint_domain` block
-- `src/hotspot3d/utils/config.py` — `FROZEN_ASSERTIONS`: `rho_min_A` 3.0 -> 5.0 and
+- `src/sphare3d/utils/config.py` — `FROZEN_ASSERTIONS`: `rho_min_A` 3.0 -> 5.0 and
   `hard_ceiling_A` 20.0 -> 25.0 repinned; `post_merge_factor_caps_rho_max` newly pinned
   at `False` so the defect cannot be reintroduced by a silent config edit. This registry
   is the run-start gate (`assert_frozen_methodology`) and is enforced before any stage
   executes — it refused the first verification run, which is the gate working correctly.
-- `src/hotspot3d/footprint/params.py` — new `post_merge_factor_caps_rho_max` key
-- `src/hotspot3d/footprint/domain.py` — module docstring; MST candidate gated;
+- `src/sphare3d/footprint/params.py` — new `post_merge_factor_caps_rho_max` key
+- `src/sphare3d/footprint/domain.py` — module docstring; MST candidate gated;
   `hard_ceiling_20A` candidate key renamed to `hard_ceiling` (the old name hard-coded a
   value that this decision changes)
 - `tests/footprint/test_footprint_domain.py`, `tests/data_structure/test_structure.py` —

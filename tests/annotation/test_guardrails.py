@@ -3,19 +3,19 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.annotation.schema import (
+from sphare3d.annotation.schema import (
     MANDATORY_ROW_CONTEXT,
     UPSTREAM_FLAGS,
     assert_mandatory_context,
     assert_no_upstream_influence,
     assert_write_target,
 )
-from hotspot3d.annotation.sources import (
+from sphare3d.annotation.sources import (
     NetworkAnnotationSource,
     SourceVersion,
     validate_source,
 )
-from hotspot3d.utils.errors import BlockedError, LeakageError
+from sphare3d.utils.errors import BlockedError, LeakageError
 
 pytestmark = pytest.mark.unit
 

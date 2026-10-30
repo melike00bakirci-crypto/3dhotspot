@@ -10,15 +10,15 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.data import audit, cohort, stage
-from hotspot3d.data.audit import (
+from sphare3d.data import audit, cohort, stage
+from sphare3d.data.audit import (
     STAGE_A_AUDITED_MODULES,
     assert_no_star_based_inclusion,
     audit_module_source,
 )
-from hotspot3d.data.review_status import REVIEW_STATUS_STARS, star_level
-from hotspot3d.data.stage import run_stage_a
-from hotspot3d.utils.errors import LeakageError
+from sphare3d.data.review_status import REVIEW_STATUS_STARS, star_level
+from sphare3d.data.stage import run_stage_a
+from sphare3d.utils.errors import LeakageError
 
 pytestmark = pytest.mark.unit
 
@@ -120,9 +120,9 @@ def test_permuting_every_star_leaves_the_cohort_identical(clustered, make_ctx):
 
 def test_permuting_stars_leaves_residue_classes_identical(clustered):
     def classes(case):
-        from hotspot3d.data.classify import SignificancePolicy
-        from hotspot3d.data.clinvar import normalize_records
-        from hotspot3d.utils.config import load_config
+        from sphare3d.data.classify import SignificancePolicy
+        from sphare3d.data.clinvar import normalize_records
+        from sphare3d.utils.config import load_config
 
         cfg = load_config("config/pipeline.yaml")
         evals = cohort.evaluate_records(

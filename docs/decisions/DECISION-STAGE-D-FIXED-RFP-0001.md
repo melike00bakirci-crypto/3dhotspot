@@ -11,7 +11,7 @@ SCOPE          = Stage D (geometric footprint robustness) only
 ## Decision
 
 Every Stage D robustness iteration reconstructs the perturbed footprint (`S_iter`) directly
-at the FROZEN Stage C `r_fp` via `hotspot3d.footprint.api.reconstruct_at`. The per-iteration
+at the FROZEN Stage C `r_fp` via `sphare3d.footprint.api.reconstruct_at`. The per-iteration
 domain re-derivation for selection purposes, multi-scale sweep, QC-driven admissibility, and
 Pareto / distance-to-ideal selection are removed from the iteration path. What was previously
 called the "secondary fixed-radius reconstruction" is now the sole per-iteration
@@ -57,11 +57,11 @@ actually selected robust to center loss).
 
 ## What changed
 
-- `src/hotspot3d/robustness/perturb.py` — `run_iteration()` calls only `reconstruct_at`
+- `src/sphare3d/robustness/perturb.py` — `run_iteration()` calls only `reconstruct_at`
   (never `build_footprint`) for the perturbed center set. `IterationResult.robustness_r_fp`
   replaces `r_fp_iter`; it is always the frozen Stage C `r_fp` for a completed iteration,
   asserted at its own origin.
-- `src/hotspot3d/robustness/stage.py` — `assert_no_radius_optimization_in_perturb()` (new,
+- `src/sphare3d/robustness/stage.py` — `assert_no_radius_optimization_in_perturb()` (new,
   AST-based) is a mandatory structural assertion on every Stage D run, alongside a
   stage-level check that every completed iteration's `robustness_r_fp` equals `phase_c.r_fp`.
   The per-iteration cost estimate that feeds the `max_wall_seconds` budget check is now probed
@@ -71,11 +71,11 @@ actually selected robust to center loss).
   to diagnose: the radius no longer varies). The `_fixed`-suffixed duplicate geometry columns
   in `perturbation_results.tsv` are removed; the (formerly "fixed", now sole) geometry block is
   reported unsuffixed.
-- `src/hotspot3d/robustness/sensitivity.py` — `center_recurrence_rate_fixed` (a duplicate of
+- `src/sphare3d/robustness/sensitivity.py` — `center_recurrence_rate_fixed` (a duplicate of
   `center_recurrence_rate` once there is only one reconstruction) is removed.
-- `src/hotspot3d/robustness/report.py` — the `r_fp^iter` diagnostics section of
+- `src/sphare3d/robustness/report.py` — the `r_fp^iter` diagnostics section of
   `stage_d_report.md` is replaced with a statement of the frozen-radius invariant.
-- `src/hotspot3d/orchestration/contracts.py`, `src/hotspot3d/footprint/stage.py` — the
+- `src/sphare3d/orchestration/contracts.py`, `src/sphare3d/footprint/stage.py` — the
   `handoff_04` required key `rfp_diagnostics` is renamed `robustness_r_fp_invariant`.
 - `docs/3D_Hotspot_Footprint_Workflow_v2_2.md` §8 — a `[CLARIFIED]` paragraph states that "the
   entire hotspot analysis should be repeated from the beginning" does not include re-selecting

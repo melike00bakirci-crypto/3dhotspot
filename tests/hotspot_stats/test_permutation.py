@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.permutation import permutation_pass, permute_labels
-from hotspot3d.utils.geometry import membership_matrix
+from sphare3d.hotspot.permutation import permutation_pass, permute_labels
+from sphare3d.utils.geometry import membership_matrix
 
 
 @pytest.mark.unit

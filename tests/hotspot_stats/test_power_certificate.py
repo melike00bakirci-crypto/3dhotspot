@@ -12,7 +12,7 @@ from math import comb
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.power import (
+from sphare3d.hotspot.power import (
     BINDING_COMBINATORIAL,
     BINDING_PERMUTATION,
     LABEL_NULL,
@@ -186,7 +186,7 @@ def test_preflight_representative_is_the_most_favourable_radius():
 
 def test_underpowered_result_is_neither_a_negative_nor_a_blocked_error():
     """The terminal state must not be typeable as a finding or as a fault."""
-    from hotspot3d.utils.errors import BlockedError, NegativeResult
+    from sphare3d.utils.errors import BlockedError, NegativeResult
 
     cert = _cert(LABEL_NULL, B=10_000, q=0.05, m=452, N_P=38, N_B=12, M=499,
                  occ_l=[20], occ_u=[38])

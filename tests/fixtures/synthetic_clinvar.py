@@ -1,12 +1,12 @@
 """Synthetic Stage A fixtures — the path named in the build plan.
 
-The implementation lives in :mod:`hotspot3d.data.synthetic` so that it is
+The implementation lives in :mod:`sphare3d.data.synthetic` so that it is
 importable from anywhere the package is importable, without depending on how
 pytest happens to arrange ``sys.path``. This module re-exports it verbatim;
 both import paths return the same objects.
 
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
-    from hotspot3d.data.synthetic import make_synthetic_case      # identical
+    from sphare3d.data.synthetic import make_synthetic_case      # identical
 
     case = make_synthetic_case("clustered")
     case.records     # list[dict]  — ClinVar variant_summary-shaped rows
@@ -27,7 +27,7 @@ expected p-values, radii or hotspot counts: those are the pipeline's to compute.
 """
 from __future__ import annotations
 
-from hotspot3d.data.synthetic import (  # noqa: F401  (re-export)
+from sphare3d.data.synthetic import (  # noqa: F401  (re-export)
     ALT_TRANSCRIPT,
     BLB_LABELS,
     BUNDLE_COLS,

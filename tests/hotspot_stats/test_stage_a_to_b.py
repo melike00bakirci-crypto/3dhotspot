@@ -19,17 +19,17 @@ import json
 
 import pytest
 
-from hotspot3d.data.stage import run_stage_a
-from hotspot3d.data.synthetic import make_synthetic_case
-from hotspot3d.hotspot.stage import EXPECTED_OUTPUTS, STAGES, run_stage_b
-from hotspot3d.orchestration.contracts import (
+from sphare3d.data.stage import run_stage_a
+from sphare3d.data.synthetic import make_synthetic_case
+from sphare3d.hotspot.stage import EXPECTED_OUTPUTS, STAGES, run_stage_b
+from sphare3d.orchestration.contracts import (
     FORBIDDEN_DOWNSTREAM_COLUMNS,
     HANDOFF_REQUIRED_KEYS,
 )
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.hashing import verify_manifest
-from hotspot3d.utils.io import read_tsv
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.utils.config import load_config
+from sphare3d.utils.hashing import verify_manifest
+from sphare3d.utils.io import read_tsv
+from sphare3d.utils.runctx import RunContext
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 

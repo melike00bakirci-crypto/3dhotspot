@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.footprint import inputs as inputs_mod
-from hotspot3d.utils.errors import LeakageError
-from hotspot3d.utils.runctx import AGENT_READ_SCOPE, AGENT_WRITE_SCOPE
+from sphare3d.footprint import inputs as inputs_mod
+from sphare3d.utils.errors import LeakageError
+from sphare3d.utils.runctx import AGENT_READ_SCOPE, AGENT_WRITE_SCOPE
 
 pytestmark = pytest.mark.unit
 

@@ -16,12 +16,12 @@ import pytest
 
 from synthetic_footprint import synthetic_run, two_cluster_centers
 
-from hotspot3d.footprint.stage import run_phase_c
-from hotspot3d.robustness.design import build_design
-from hotspot3d.robustness.parallel import run_iterations
-from hotspot3d.robustness.params import RobustnessParams
-from hotspot3d.robustness.stage import _aggregate_all
-from hotspot3d.utils.seeds import ctx_iteration
+from sphare3d.footprint.stage import run_phase_c
+from sphare3d.robustness.design import build_design
+from sphare3d.robustness.parallel import run_iterations
+from sphare3d.robustness.params import RobustnessParams
+from sphare3d.robustness.stage import _aggregate_all
+from sphare3d.utils.seeds import ctx_iteration
 
 pytestmark = pytest.mark.unit
 
@@ -86,7 +86,7 @@ def test_worker_count_never_exceeds_four_in_this_module():
 
 def test_serial_path_uses_no_process_pool(monkeypatch, parallel_fixture):
     """n_workers <= 1 must never construct a ProcessPoolExecutor at all."""
-    import hotspot3d.robustness.parallel as parallel_mod
+    import sphare3d.robustness.parallel as parallel_mod
 
     _ctx, tasks, common = parallel_fixture
 
@@ -100,7 +100,7 @@ def test_serial_path_uses_no_process_pool(monkeypatch, parallel_fixture):
 
 def test_effective_workers_never_exceeds_task_count(monkeypatch, parallel_fixture):
     """A run with fewer iterations than configured workers must not over-spawn."""
-    import hotspot3d.robustness.parallel as parallel_mod
+    import sphare3d.robustness.parallel as parallel_mod
 
     _ctx, tasks, common = parallel_fixture
     captured = {}
@@ -167,7 +167,7 @@ def test_workers_pin_blas_threads_and_run_niced(monkeypatch):
     import multiprocessing
     from concurrent.futures import ProcessPoolExecutor
 
-    from hotspot3d.robustness.parallel import _init_worker
+    from sphare3d.robustness.parallel import _init_worker
 
     # simulate a caller that already had many BLAS threads configured, to
     # prove the worker's pinning genuinely overrides it rather than merely

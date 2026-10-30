@@ -624,7 +624,7 @@ wheels = [
 ]
 
 [[package]]
-name = "hotspot3d"
+name = "sphare3d"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

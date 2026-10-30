@@ -15,12 +15,12 @@ import pytest
 
 from synthetic_footprint import lattice
 
-from hotspot3d.footprint.api import (CenterSet, Universe,
+from sphare3d.footprint.api import (CenterSet, Universe,
                                      build_footprint_contained)
-from hotspot3d.footprint.inputs import EvidenceRecord, EvidenceSet
-from hotspot3d.footprint.qc import QC_F1, QC_F2, QC_F3, QCVerdict
-from hotspot3d.footprint.selection import SelectionDiagnostics, diagnose_selection
-from hotspot3d.utils.multiobjective import Candidate, select
+from sphare3d.footprint.inputs import EvidenceRecord, EvidenceSet
+from sphare3d.footprint.qc import QC_F1, QC_F2, QC_F3, QCVerdict
+from sphare3d.footprint.selection import SelectionDiagnostics, diagnose_selection
+from sphare3d.utils.multiobjective import Candidate, select
 
 pytestmark = pytest.mark.unit
 

@@ -7,8 +7,8 @@ import pytest
 
 from synthetic_footprint import lattice, residues_beyond, synthetic_run
 
-from hotspot3d.footprint.stage import run_stage_cd
-from hotspot3d.utils.io import read_tsv
+from sphare3d.footprint.stage import run_stage_cd
+from sphare3d.utils.io import read_tsv
 
 pytestmark = pytest.mark.unit
 

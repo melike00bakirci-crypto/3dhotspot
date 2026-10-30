@@ -199,7 +199,7 @@ hoc gate and its correction method.
 10. The three residue objects are reported separately and not conflated, with the "centers
     need not carry a variant" statement present.
 11. Upstream hashes re-verified unchanged at stage end.
-12. Nothing written outside `10_ANNOTATION/`, `src/hotspot3d/annotation/`,
+12. Nothing written outside `10_ANNOTATION/`, `src/sphare3d/annotation/`,
     `tests/annotation/`, `data/cache/annotation/`.
 
 ## 10. Canonical Output Files (Output Contract, Part IX)
@@ -263,14 +263,14 @@ passthrough, the four upstream flags, `qc_status`, SHA-256 manifest, and
 **Write:** `FULL_RESULTS/10_ANNOTATION/**` including `stage_status.json`,
 `warnings_10_annotation.tsv`, `stage_manifest.tsv`, `figures/`; your own
 `12_REPRODUCIBILITY/provenance/provenance_10_annotation.json`;
-`src/hotspot3d/annotation/**`; `tests/annotation/**`; `data/cache/annotation/**`;
+`src/sphare3d/annotation/**`; `tests/annotation/**`; `data/cache/annotation/**`;
 `logs/<RUN_ID>/biological_annotation.log`.
 
 **Read-only:** `01_*`–`09_*`, `11_*`, the methodology file, `docs/`, `config/`,
-`src/hotspot3d/utils/`.
+`src/sphare3d/utils/`.
 
 **Never touch:** any upstream stage directory, `00_RUN_SUMMARY/`, `12_REPRODUCIBILITY/`
-aggregates, run-root files, `REVIEW_PACK/`, `ARCHIVES/`, any other `src/hotspot3d/`
+aggregates, run-root files, `REVIEW_PACK/`, `ARCHIVES/`, any other `src/sphare3d/`
 subpackage, `.claude/`, `config/`.
 
 ## 13. Provenance Requirements
@@ -344,7 +344,7 @@ B–D) and this overlay visibly separate.
 
 ## 15b. Anomaly flags to pipeline-qa-debugger
 
-The deterministic stage-contract validator (`hotspot3d.utils.stage_contract`) runs
+The deterministic stage-contract validator (`sphare3d.utils.stage_contract`) runs
 mechanically after every stage and catches schema/handoff/output-contract
 violations on its own — you do not need to defend against those. This section is
 about something narrower: when YOU notice something that looks like a design or

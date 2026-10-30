@@ -5,8 +5,8 @@ behaves correctly — the stage-contract validator, the failure taxonomy, the
 INFRA_CONFIG/SCIENTIFIC_CONFIG split, the write-access manifest, the bug-brief
 protocol, and the bounded repair loop. It does not spawn a live
 ``pipeline-qa-debugger`` agent for every case: what is under test here is the
-STRUCTURE that agent's charter is built on (`hotspot3d.utils.qa_taxonomy`,
-`hotspot3d.utils.stage_contract`) and that the Lead uses to accept or reject its
+STRUCTURE that agent's charter is built on (`sphare3d.utils.qa_taxonomy`,
+`sphare3d.utils.stage_contract`) and that the Lead uses to accept or reject its
 output — proving THAT works is what "prove routing works" means for a
 policy/plumbing layer, independent of any one agent's live diagnostic skill
 (already demonstrated repeatedly elsewhere in this codebase's history).
@@ -19,8 +19,8 @@ import json
 
 import pytest
 
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.qa_taxonomy import (
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.qa_taxonomy import (
     QA_DIRECT_WRITE_GLOBS,
     QA_SYMBOL_CARVEOUTS,
     BugBrief,
@@ -33,7 +33,7 @@ from hotspot3d.utils.qa_taxonomy import (
     qa_may_edit_directly,
     root_cause_signature,
 )
-from hotspot3d.utils.stage_contract import validate_stage_contract
+from sphare3d.utils.stage_contract import validate_stage_contract
 
 pytestmark = pytest.mark.integration
 
@@ -65,8 +65,8 @@ def _minimal_brief(**overrides) -> BugBrief:
 
 def test_case1_schema_defect_caught_by_validator_and_classified(tmp_path):
     """A stage claims COMPLETED but its PRIMARY outputs and handoff are broken."""
-    from hotspot3d.utils.config import load_config
-    from hotspot3d.utils.runctx import RunContext
+    from sphare3d.utils.config import load_config
+    from sphare3d.utils.runctx import RunContext
 
     stage_dir = tmp_path / "FULL_RESULTS" / "06_FINAL_HOTSPOTS"
     stage_dir.mkdir(parents=True)
@@ -102,8 +102,8 @@ def test_case1_schema_defect_caught_by_validator_and_classified(tmp_path):
 
 def test_case1_a_well_formed_stage_passes_clean(tmp_path):
     """The converse: a genuinely well-formed NOT_RUN stage must not be flagged."""
-    from hotspot3d.utils.config import load_config
-    from hotspot3d.utils.runctx import RunContext
+    from sphare3d.utils.config import load_config
+    from sphare3d.utils.runctx import RunContext
 
     stage_dir = tmp_path / "FULL_RESULTS" / "09_ROBUSTNESS"
     stage_dir.mkdir(parents=True)
@@ -126,13 +126,13 @@ def test_case1_a_well_formed_stage_passes_clean(tmp_path):
 # --------------------------------------------------------------------------- #
 
 def test_case2_glue_files_are_directly_editable_by_qa():
-    for path in ("src/hotspot3d/orchestration/pipeline.py",
-                 "src/hotspot3d/orchestration/cli.py",
-                 "src/hotspot3d/reporting/manifest.py",
-                 "src/hotspot3d/reporting/archives.py",
-                 "src/hotspot3d/utils/io.py",
-                 "src/hotspot3d/utils/hashing.py",
-                 "src/hotspot3d/utils/status.py"):
+    for path in ("src/sphare3d/orchestration/pipeline.py",
+                 "src/sphare3d/orchestration/cli.py",
+                 "src/sphare3d/reporting/manifest.py",
+                 "src/sphare3d/reporting/archives.py",
+                 "src/sphare3d/utils/io.py",
+                 "src/sphare3d/utils/hashing.py",
+                 "src/sphare3d/utils/status.py"):
         assert qa_may_edit_directly(path), f"{path} should be QA-direct-editable"
 
 
@@ -148,10 +148,10 @@ def test_case2_a_glue_defect_brief_validates_as_qa_repairable():
                           "counts 41 files",
         why_this_is_an_implementation_defect="pure reporting/aggregation plumbing, "
                                              "no scientific value involved",
-        files_or_components_affected=["src/hotspot3d/reporting/manifest.py"],
+        files_or_components_affected=["src/sphare3d/reporting/manifest.py"],
         fix_applied_by_qa=True,
     )
-    assert qa_may_edit_directly("src/hotspot3d/reporting/manifest.py")
+    assert qa_may_edit_directly("src/sphare3d/reporting/manifest.py")
     assert brief.validate() == []
     assert_brief_acceptable_to_lead(brief)  # does not raise
 
@@ -162,12 +162,12 @@ def test_case2_a_glue_defect_brief_validates_as_qa_repairable():
 # --------------------------------------------------------------------------- #
 
 @pytest.mark.parametrize("path,expected_owner", [
-    ("src/hotspot3d/hotspot/scan.py", "hotspot-statistics"),
-    ("src/hotspot3d/hotspot/selection.py", "hotspot-statistics"),
-    ("src/hotspot3d/footprint/selection.py", "footprint-robustness"),
-    ("src/hotspot3d/robustness/perturb.py", "footprint-robustness"),
-    ("src/hotspot3d/data/classify.py", "data-structure"),
-    ("src/hotspot3d/annotation/rubric.py", "biological-annotation"),
+    ("src/sphare3d/hotspot/scan.py", "hotspot-statistics"),
+    ("src/sphare3d/hotspot/selection.py", "hotspot-statistics"),
+    ("src/sphare3d/footprint/selection.py", "footprint-robustness"),
+    ("src/sphare3d/robustness/perturb.py", "footprint-robustness"),
+    ("src/sphare3d/data/classify.py", "data-structure"),
+    ("src/sphare3d/annotation/rubric.py", "biological-annotation"),
 ])
 def test_case3_scientific_files_route_to_their_owner_not_qa(path, expected_owner):
     assert owner_of_path(path) == expected_owner
@@ -184,7 +184,7 @@ def test_case3_a_scientific_defect_routes_and_a_false_qa_fix_claim_is_rejected()
                           "3 radii, which the formula FE=[N_P_in/N_L_in]/pi cannot "
                           "produce (a ratio of non-negative counts over a positive "
                           "prevalence)",
-        files_or_components_affected=["src/hotspot3d/hotspot/scan.py"],
+        files_or_components_affected=["src/sphare3d/hotspot/scan.py"],
         targeted_test_required="test_fold_enrichment_is_never_negative",
         fix_applied_by_qa=False,
     )
@@ -196,7 +196,7 @@ def test_case3_a_scientific_defect_routes_and_a_false_qa_fix_claim_is_rejected()
         bug_id="QA-TEST-0003b", failure_class=FailureClass.IMPLEMENTATION_BUG,
         stage="05_HOTSPOT_RADIUS", owner="hotspot-statistics",
         evidence_artifact="same as above",
-        files_or_components_affected=["src/hotspot3d/hotspot/scan.py"],
+        files_or_components_affected=["src/sphare3d/hotspot/scan.py"],
         fix_applied_by_qa=True,  # <- the violation under test
     )
     problems = false_claim.validate()
@@ -212,7 +212,7 @@ def test_case3_a_scientific_defect_routes_and_a_false_qa_fix_claim_is_rejected()
         stage="05_HOTSPOT_RADIUS", owner="hotspot-statistics",
         evidence_artifact="hotspot-statistics fixed scan.py; "
                           "test_fold_enrichment_is_never_negative now passes",
-        files_or_components_affected=["src/hotspot3d/hotspot/scan.py"],
+        files_or_components_affected=["src/sphare3d/hotspot/scan.py"],
         targeted_test_required="test_fold_enrichment_is_never_negative",
         fix_applied_by_qa=False,  # QA validated, did not author the fix
         repair_attempt_number=1,
@@ -282,11 +282,11 @@ def test_case5_scientific_negative_is_validated_not_repaired():
 def test_case6_external_data_failure_is_qa_repairable_via_carveout():
     # The concrete carve-out this case is built on: retry/backoff constants
     # inside an otherwise off-limits (data-structure-owned) scientific file.
-    assert qa_may_edit_directly("src/hotspot3d/data/sources.py", "CLINVAR_MAX_ATTEMPTS")
-    assert qa_may_edit_directly("src/hotspot3d/data/sources.py", "CLINVAR_BACKOFF_BASE_S")
+    assert qa_may_edit_directly("src/sphare3d/data/sources.py", "CLINVAR_MAX_ATTEMPTS")
+    assert qa_may_edit_directly("src/sphare3d/data/sources.py", "CLINVAR_BACKOFF_BASE_S")
     # But the file as a whole, or an unrelated symbol in it, is NOT carved out.
-    assert not qa_may_edit_directly("src/hotspot3d/data/sources.py")
-    assert not qa_may_edit_directly("src/hotspot3d/data/sources.py", "SUBSTITUTION_TYPES")
+    assert not qa_may_edit_directly("src/sphare3d/data/sources.py")
+    assert not qa_may_edit_directly("src/sphare3d/data/sources.py", "SUBSTITUTION_TYPES")
 
     brief = _minimal_brief(
         bug_id="QA-TEST-0006", failure_class=FailureClass.EXTERNAL_DATA_FAILURE,
@@ -298,12 +298,12 @@ def test_case6_external_data_failure_is_qa_repairable_via_carveout():
             "urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool"
             "(host='ftp.ncbi.nlm.nih.gov', port=443): Read timed out. "
             "3 attempts, all timed out after 30s — failure originates in the "
-            "remote host's response time, not in hotspot3d's parsing"),
+            "remote host's response time, not in sphare3d's parsing"),
         why_this_is_an_implementation_defect=(
             "the retry BUDGET (CLINVAR_MAX_ATTEMPTS=3) is too low for this "
             "host's observed latency; raising it is an infra/retry-limit change, "
             "not a scientific one"),
-        files_or_components_affected=["src/hotspot3d/data/sources.py:CLINVAR_MAX_ATTEMPTS"],
+        files_or_components_affected=["src/sphare3d/data/sources.py:CLINVAR_MAX_ATTEMPTS"],
         fix_applied_by_qa=True,
     )
     assert brief.validate() == []
@@ -491,7 +491,7 @@ def test_symbol_carveouts_only_target_files_outside_the_direct_write_globs():
 
 
 def test_owner_of_path_covers_every_stage_owner():
-    from hotspot3d.utils.runctx import STAGE_OWNERS
+    from sphare3d.utils.runctx import STAGE_OWNERS
 
     for stage, owner in STAGE_OWNERS.items():
         assert owner_of_path(f"FULL_RESULTS/{stage}/x.tsv") == owner

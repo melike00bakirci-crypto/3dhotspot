@@ -14,14 +14,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.detection import final_detection
-from hotspot3d.hotspot.positional import (
+from sphare3d.hotspot.detection import final_detection
+from sphare3d.hotspot.positional import (
     NULL_MODEL,
     hypergeom_sf,
     positional_combinatorial_floor,
     positional_pass,
 )
-from hotspot3d.utils.geometry import cross_distances
+from sphare3d.utils.geometry import cross_distances
 
 pytestmark = pytest.mark.unit
 

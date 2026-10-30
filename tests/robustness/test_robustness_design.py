@@ -6,10 +6,10 @@ from math import comb
 
 import pytest
 
-from hotspot3d.robustness.design import (build_design, k_max, rank_subset,
+from sphare3d.robustness.design import (build_design, k_max, rank_subset,
                                          unrank_subset)
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.seeds import SeedRegistry
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.seeds import SeedRegistry
 
 pytestmark = pytest.mark.unit
 

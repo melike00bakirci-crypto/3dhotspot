@@ -79,7 +79,7 @@ cannot pass. No new top-level key was introduced.
 
 ## Files changed
 
-- `src/hotspot3d/annotation/stage.py` — severity; `mechanism_counts` null-on-not-run;
+- `src/sphare3d/annotation/stage.py` — severity; `mechanism_counts` null-on-not-run;
   scope sentence appended to `interpretation_caveats`
 
 ## Follow-up, not authorized here

@@ -27,9 +27,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hotspot3d.utils.config import assert_frozen_methodology, load_config
-from hotspot3d.utils.hashing import sha256_file
-from hotspot3d.utils.runctx import RunContext, make_run_id
+from sphare3d.utils.config import assert_frozen_methodology, load_config
+from sphare3d.utils.hashing import sha256_file
+from sphare3d.utils.runctx import RunContext, make_run_id
 from tests.integration._config import INTEGRATION_N_CAP, PIPELINE_CONFIG
 
 pytestmark = pytest.mark.integration
@@ -61,7 +61,7 @@ def _snapshot(tmp_path: Path, cfg) -> Path:
     ``test_end_to_end.test_full_chain_on_clustered_case`` makes the same
     comparison against a real completed run.
     """
-    from hotspot3d.orchestration.pipeline import _snapshot_reproducibility
+    from sphare3d.orchestration.pipeline import _snapshot_reproducibility
 
     ctx = RunContext.create(gene="SYNTH", config=cfg, results_root=tmp_path / "results",
                             synthetic=True, run_id="20250101T000000Z_prov0001_prov0002")

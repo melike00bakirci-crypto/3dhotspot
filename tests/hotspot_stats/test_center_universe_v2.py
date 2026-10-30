@@ -31,14 +31,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from synthetic_hotspot import full_synthetic_run, planted_cohort, synthetic_protein
 
-from hotspot3d.hotspot.detection import final_detection
-from hotspot3d.hotspot.positional import positional_pass
-from hotspot3d.hotspot.report import _decision_summary
-from hotspot3d.hotspot.scan import RadiusResult, scan_one_radius
-from hotspot3d.hotspot.selection import run_selection
-from hotspot3d.hotspot.stage import run_stage_b
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.io import read_tsv
+from sphare3d.hotspot.detection import final_detection
+from sphare3d.hotspot.positional import positional_pass
+from sphare3d.hotspot.report import _decision_summary
+from sphare3d.hotspot.scan import RadiusResult, scan_one_radius
+from sphare3d.hotspot.selection import run_selection
+from sphare3d.hotspot.stage import run_stage_b
+from sphare3d.utils.config import load_config
+from sphare3d.utils.io import read_tsv
 
 pytestmark = pytest.mark.unit
 
@@ -69,7 +69,7 @@ def test_positional_pass_decouples_candidate_count_from_population():
     center_mask[:10] = True                     # only the first 10 residues are U_center
     n_centers = int(center_mask.sum())
 
-    from hotspot3d.utils.geometry import cross_distances, membership_matrix
+    from sphare3d.utils.geometry import cross_distances, membership_matrix
     radius = 8.0
     U = (cross_distances(coords[center_mask], coords) <= radius).astype(np.uint8)
     A = membership_matrix(coords[center_mask], labeled, radius)
@@ -311,7 +311,7 @@ def test_selection_is_identical_whether_or_not_bio_plausibility_is_computed():
 
 
 def test_bio_plausibility_never_appears_in_the_pareto_objective_names():
-    from hotspot3d.hotspot.scan import OBJECTIVE_NAMES
+    from sphare3d.hotspot.scan import OBJECTIVE_NAMES
     assert OBJECTIVE_NAMES == ["loo_mcc", "perm_evidence_zg", "fold_enrichment",
                                "neighbor_stability"]
     assert "structural_coverage" not in OBJECTIVE_NAMES
@@ -320,7 +320,7 @@ def test_bio_plausibility_never_appears_in_the_pareto_objective_names():
 
 
 def test_bio_plausibility_never_appears_in_the_admissibility_rules():
-    from hotspot3d.hotspot.scan import ADMISSIBILITY_RULES, SIGNIFICANCE_CONDITIONED_DIAGNOSTICS
+    from sphare3d.hotspot.scan import ADMISSIBILITY_RULES, SIGNIFICANCE_CONDITIONED_DIAGNOSTICS
     for rules in (ADMISSIBILITY_RULES, SIGNIFICANCE_CONDITIONED_DIAGNOSTICS):
         assert "structural_coverage" not in rules
         assert "cohort_absorption" not in rules

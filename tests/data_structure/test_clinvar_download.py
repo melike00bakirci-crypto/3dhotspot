@@ -17,15 +17,15 @@ import json
 import pytest
 import requests
 
-from hotspot3d.data.sources import (
+from sphare3d.data.sources import (
     CLINVAR_MD5_URL,
     CLINVAR_VARIANT_SUMMARY_URL,
     ClinVarClient,
     assert_release_metadata,
 )
-from hotspot3d.data.stage import run_stage_a
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.io import read_json
+from sphare3d.data.stage import run_stage_a
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.io import read_json
 
 pytestmark = pytest.mark.unit
 

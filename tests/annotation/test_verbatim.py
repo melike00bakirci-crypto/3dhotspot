@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.annotation.verbatim import (
+from sphare3d.annotation.verbatim import (
     VerbatimAudit,
     load_verbatim_table,
     verbatim_copy,
 )
-from hotspot3d.utils.errors import BlockedError, EscalationRequired
-from hotspot3d.utils.io import write_tsv
+from sphare3d.utils.errors import BlockedError, EscalationRequired
+from sphare3d.utils.io import write_tsv
 
 pytestmark = pytest.mark.unit
 

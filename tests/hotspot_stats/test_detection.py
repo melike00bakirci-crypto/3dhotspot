@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.detection import (
+from sphare3d.hotspot.detection import (
     ALL_CENTER_TEST_COLUMNS,
     final_detection,
     significant_subset_matches,

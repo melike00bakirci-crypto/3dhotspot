@@ -96,7 +96,7 @@ Two roles, executed strictly in sequence and separated by a hard internal freeze
    `r_fp`.
 5. Export `FP_original` in mesh, voxel, residue-list and PDB/mmCIF form, plus every
    per-radius intermediate. Expose a **frozen, versioned, deterministic footprint API** in
-   `src/hotspot3d/footprint/` with a recorded `code_version`.
+   `src/sphare3d/footprint/` with a recorded `code_version`.
 
 ### Phase D — geometric footprint robustness (II.11)
 
@@ -343,7 +343,7 @@ derived seeds must give byte-identical outputs.
     contributing counts; `robustness_r_fp == r_fp` asserted for every iteration
     [DECISION-STAGE-D-FIXED-RFP-0001].
 20. **Assertions:** no ClinVar record or class label changed during the stage; no hotspot
-    statistic was recomputed; `src/hotspot3d/spatial/` + `src/hotspot3d/hotspot/` was not imported by the
+    statistic was recomputed; `src/sphare3d/spatial/` + `src/sphare3d/hotspot/` was not imported by the
     robustness procedure; and the `07_*`/`08_*` freeze hashes plus all upstream artifacts are
     unchanged at stage end.
 21. Nothing written outside the owned directories of §12.
@@ -449,7 +449,7 @@ warning (ADVISORY) has no operational referent here and is never emitted — the
 existing per-iteration failure vocabulary (`FAILED_EMPTY_DOMAIN`,
 `FAILED_NO_ADMISSIBLE_FOOTPRINT`, `FAILED_GEOMETRY_FAULT`, all §3.16's II.11
 geometric failures) is unchanged by v2 and remains the complete, purely-geometric
-status set. See `src/hotspot3d/robustness/perturb.py`'s module docstring for the
+status set. See `src/sphare3d/robustness/perturb.py`'s module docstring for the
 full investigation and `tests/robustness/test_robustness_v2_underpowered_investigation.py`
 for the pinning tests; this is reported to the Lead for a ruling, not resolved
 unilaterally.
@@ -498,17 +498,17 @@ hotspot discovery**, `qc_status`, SHA-256 manifest.
 **Write:** `FULL_RESULTS/07_FOOTPRINT_RADIUS/**`, `08_FINAL_FOOTPRINT/**`,
 `09_ROBUSTNESS/**`, each with its own `stage_status.json`, `warnings_<stage>.tsv`,
 `stage_manifest.tsv`, `figures/`, `structures/`; your own three
-`12_REPRODUCIBILITY/provenance/provenance_*.json` files; `src/hotspot3d/footprint/**`;
-`src/hotspot3d/robustness/**`; `tests/footprint/**`; `tests/robustness/**`;
+`12_REPRODUCIBILITY/provenance/provenance_*.json` files; `src/sphare3d/footprint/**`;
+`src/sphare3d/robustness/**`; `tests/footprint/**`; `tests/robustness/**`;
 `logs/<RUN_ID>/footprint_robustness.log`.
 
-**Read-only:** `01_*`–`06_*`, `11_*`, `src/hotspot3d/utils/**`, the methodology file,
-`docs/`, `config/`. `src/hotspot3d/footprint/` is **imported, never edited** during Phase D.
-`src/hotspot3d/spatial/` + `src/hotspot3d/hotspot/` may be read for reference but is **not imported** by the
+**Read-only:** `01_*`–`06_*`, `11_*`, `src/sphare3d/utils/**`, the methodology file,
+`docs/`, `config/`. `src/sphare3d/footprint/` is **imported, never edited** during Phase D.
+`src/sphare3d/spatial/` + `src/sphare3d/hotspot/` may be read for reference but is **not imported** by the
 robustness procedure.
 
 **Never touch:** `10_ANNOTATION/`, `00_RUN_SUMMARY/`, `12_REPRODUCIBILITY/` aggregates,
-run-root files, `REVIEW_PACK/`, `ARCHIVES/`, `data/raw/`, any other `src/hotspot3d/`
+run-root files, `REVIEW_PACK/`, `ARCHIVES/`, `data/raw/`, any other `src/sphare3d/`
 subpackage, `.claude/`, `config/`.
 
 ## 13. Provenance Requirements
@@ -608,7 +608,7 @@ never as validation of hotspot discovery.
 
 ## 15b. Anomaly flags to pipeline-qa-debugger
 
-The deterministic stage-contract validator (`hotspot3d.utils.stage_contract`) runs
+The deterministic stage-contract validator (`sphare3d.utils.stage_contract`) runs
 mechanically after every stage and catches schema/handoff/output-contract
 violations on its own — you do not need to defend against those. This section is
 about something narrower: when YOU notice something that looks like a design or

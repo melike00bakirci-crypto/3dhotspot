@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from hotspot3d.data.synthetic import CASE_NAMES, make_synthetic_case
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.data.synthetic import CASE_NAMES, make_synthetic_case
+from sphare3d.utils.config import load_config
+from sphare3d.utils.runctx import RunContext
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:                 # makes tests.fixtures.* importable

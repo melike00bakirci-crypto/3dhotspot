@@ -101,12 +101,12 @@ def _run_stage_b(run_id: str, case: str = "clustered", root: Path | None = None)
     production execution is untouched: ``run_pipeline`` still runs every stage.
     """
     sys.path.insert(0, str(REPO_ROOT))
-    from hotspot3d.data.stage import run_stage_a
-    from hotspot3d.hotspot.stage import run_stage_b as _stage_b
-    from hotspot3d.reporting.manifest import ALL_STAGES
-    from hotspot3d.utils.config import assert_frozen_methodology
-    from hotspot3d.utils.errors import BlockedError, LeakageError, NegativeResult
-    from hotspot3d.utils.runctx import RunContext
+    from sphare3d.data.stage import run_stage_a
+    from sphare3d.hotspot.stage import run_stage_b as _stage_b
+    from sphare3d.reporting.manifest import ALL_STAGES
+    from sphare3d.utils.config import assert_frozen_methodology
+    from sphare3d.utils.errors import BlockedError, LeakageError, NegativeResult
+    from sphare3d.utils.runctx import RunContext
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
     from tests.integration._config import load_integration_config
 
@@ -293,7 +293,7 @@ def test_clustered_conclusion_is_seed_stable_within_the_radius_grid():
     plus qualitative-descriptor-agreement checks below are what actually
     distinguishes that from a genuine disagreement about where the hotspot is.
     """
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
     from tests.integration._config import PIPELINE_CONFIG
 
     step = float(load_config(PIPELINE_CONFIG).get("radius_domain.step_hot_A"))
@@ -361,7 +361,7 @@ def test_radius_scan_is_not_degenerate():
     which is exactly how a seed-driven flip in r_hot arises. The frozen rule is
     correct; a fixture that starves it of candidates is not a fair test of it.
     """
-    from hotspot3d.utils.io import read_tsv
+    from sphare3d.utils.io import read_tsv
     result = _run_stage_b(FIXED_RUN_ID)
     scan = result.run_root / "FULL_RESULTS/05_HOTSPOT_RADIUS/r_hot_scan.tsv"
     assert scan.is_file(), "no radius scan was produced"

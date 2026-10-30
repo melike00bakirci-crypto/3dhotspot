@@ -99,12 +99,12 @@ PTEN / MEN1 / SCN5A     near_tie False  silent
 
 ## Files changed
 
-- `src/hotspot3d/utils/multiobjective.py` — separation clause removed; `severity`,
+- `src/sphare3d/utils/multiobjective.py` — separation clause removed; `severity`,
   `major_threshold`, `advisory_threshold` added to `near_tie_detail`; new
   `near_tie_major_rel` parameter
 - `config/pipeline.yaml` — `near_tie_major_threshold: 0.01` in `radius_selection` and
   `footprint_selection`; `near_tie_radius_separation_steps` marked INERT
-- `src/hotspot3d/hotspot/stage.py` — graded severity passed to the warning; the message
+- `src/sphare3d/hotspot/stage.py` — graded severity passed to the warning; the message
   no longer claims "more than 2 steps apart" (which is now false by construction)
-- `src/hotspot3d/footprint/params.py`, `src/hotspot3d/footprint/selection.py` — threshold
+- `src/sphare3d/footprint/params.py`, `src/sphare3d/footprint/selection.py` — threshold
   plumbed through

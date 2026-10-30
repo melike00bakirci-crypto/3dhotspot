@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.spatial.domain import (
+from sphare3d.spatial.domain import (
     TRIGGER_DEFINITIONS,
     derive_domain,
     elevated_set,

@@ -21,14 +21,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from hotspot3d.annotation.inputs import UPSTREAM_PATHS
-from hotspot3d.annotation.rubric import Evidence, Mechanism, MechanismRecord
-from hotspot3d.annotation.sources import SourceVersion
-from hotspot3d.orchestration.contracts import Handoff
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.hashing import manifest_for
-from hotspot3d.utils.io import write_json, write_tsv
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.annotation.inputs import UPSTREAM_PATHS
+from sphare3d.annotation.rubric import Evidence, Mechanism, MechanismRecord
+from sphare3d.annotation.sources import SourceVersion
+from sphare3d.orchestration.contracts import Handoff
+from sphare3d.utils.config import load_config
+from sphare3d.utils.hashing import manifest_for
+from sphare3d.utils.io import write_json, write_tsv
+from sphare3d.utils.runctx import RunContext
 
 SEARCH_DATE = "2026-01-15"
 DB = "PubMed"

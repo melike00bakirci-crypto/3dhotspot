@@ -4,9 +4,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.footprint.domain import build_grid, derive_domain
-from hotspot3d.utils.errors import NegativeResult
-from hotspot3d.utils.geometry import mst_edges
+from sphare3d.footprint.domain import build_grid, derive_domain
+from sphare3d.utils.errors import NegativeResult
+from sphare3d.utils.geometry import mst_edges
 
 pytestmark = pytest.mark.unit
 
@@ -99,7 +99,7 @@ def test_r_hot_is_not_an_argument_to_the_domain(params):
     """F10 is structural: no signature in this module accepts r_hot."""
     import inspect
 
-    from hotspot3d.footprint import domain as domain_mod
+    from sphare3d.footprint import domain as domain_mod
 
     for name, obj in vars(domain_mod).items():
         if inspect.isfunction(obj):

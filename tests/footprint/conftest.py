@@ -15,9 +15,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from synthetic_footprint import synthetic_run, two_cluster_centers      # noqa: E402
 
-from hotspot3d.footprint.params import FootprintParams        # noqa: E402
-from hotspot3d.footprint.stage import run_phase_c             # noqa: E402
-from hotspot3d.utils.config import load_config                # noqa: E402
+from sphare3d.footprint.params import FootprintParams        # noqa: E402
+from sphare3d.footprint.stage import run_phase_c             # noqa: E402
+from sphare3d.utils.config import load_config                # noqa: E402
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "pipeline.yaml"
 

@@ -20,18 +20,18 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hotspot3d.data.sources import (
+from sphare3d.data.sources import (
     OLIGOMERIC_STATE_MONOMER,
     OLIGOMERIC_STATE_OLIGOMERIC,
     OLIGOMERIC_STATE_UNKNOWN,
     classify_oligomeric_state,
     extract_subunit_comment,
 )
-from hotspot3d.data.stage import run_stage_a
-from hotspot3d.structure.sources import assert_oligomeric_assembly_permitted
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.data.stage import run_stage_a
+from sphare3d.structure.sources import assert_oligomeric_assembly_permitted
+from sphare3d.utils.config import load_config
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.runctx import RunContext
 
 pytestmark = pytest.mark.unit
 

@@ -16,13 +16,13 @@ import json
 
 import pytest
 
-from hotspot3d.hotspot.stage import (
+from sphare3d.hotspot.stage import (
     SCAN_FINAL_NOTE_CERTIFIED,
     SCAN_FINAL_NOTE_UNCERTIFIED,
     run_stage_b,
 )
-from hotspot3d.utils.io import read_tsv
-from hotspot3d.utils.seeds import ctx_final_detection, ctx_scan, derive_seed
+from sphare3d.utils.io import read_tsv
+from sphare3d.utils.seeds import ctx_final_detection, ctx_scan, derive_seed
 from synthetic_hotspot import full_synthetic_run
 
 

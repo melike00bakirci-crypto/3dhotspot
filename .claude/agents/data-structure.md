@@ -264,16 +264,16 @@ non-redefining channel declared in the same handoff.
 `FULL_RESULTS/03_STRUCTURE_QC/**`, each with its own `stage_status.json`,
 `warnings_<stage>.tsv`, `stage_manifest.tsv`, `figures/`, `structures/`; your own three
 `12_REPRODUCIBILITY/provenance/provenance_*.json` files; `data/cache/data_structure/**`;
-`src/hotspot3d/data/**`; `src/hotspot3d/structure/**`; `tests/data_structure/**`;
+`src/sphare3d/data/**`; `src/sphare3d/structure/**`; `tests/data_structure/**`;
 `tests/fixtures/synthetic_clinvar.py`;
 `logs/<RUN_ID>/data_structure.log`.
 
-**Read-only:** the methodology file, `docs/`, `config/`, `src/hotspot3d/utils/`.
+**Read-only:** the methodology file, `docs/`, `config/`, `src/sphare3d/utils/`.
 
 **Never touch:** `FULL_RESULTS/04_*` … `11_*`, `12_REPRODUCIBILITY/` aggregates,
 `00_RUN_SUMMARY/`, run-root files (`README.txt`, `manifest.tsv`, `warnings.tsv`,
 `run_summary.json`, `gene_summary.tsv`), `REVIEW_PACK/`, `ARCHIVES/`, any other
-`src/hotspot3d/` subpackage, `.claude/`, `config/`.
+`src/sphare3d/` subpackage, `.claude/`, `config/`.
 
 Exactly one writer per path. Reads flow strictly upstream. Cross-package **imports** are
 allowed; cross-package **edits** are not.
@@ -340,7 +340,7 @@ star distribution. Never claim a check passed that you did not run.
 
 ## 15b. Anomaly flags to pipeline-qa-debugger
 
-The deterministic stage-contract validator (`hotspot3d.utils.stage_contract`) runs
+The deterministic stage-contract validator (`sphare3d.utils.stage_contract`) runs
 mechanically after every stage and catches schema/handoff/output-contract
 violations on its own — you do not need to defend against those. This section is
 about something narrower: when YOU notice something that looks like a design or
@@ -376,7 +376,7 @@ directly; you do not have the Agent tool and do not route to QA yourself.
   balancing.
 - Computing any spatial statistic, radius, footprint or annotation.
 - Writing to `config/`, `.claude/`, another agent's stage directory, `REVIEW_PACK/`,
-  `ARCHIVES/`, run-root aggregates, or another `src/hotspot3d/` subpackage.
+  `ARCHIVES/`, run-root aggregates, or another `src/sphare3d/` subpackage.
 - Renaming the `.partial` run root, or spawning any subagent (you hold no Agent/Task tool).
 
 ## 17. Least-Privilege Tools

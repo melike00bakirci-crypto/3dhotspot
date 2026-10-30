@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.annotation.inputs import _group_by_hotspot
+from sphare3d.annotation.inputs import _group_by_hotspot
 
 pytestmark = pytest.mark.unit
 

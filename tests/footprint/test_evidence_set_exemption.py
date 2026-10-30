@@ -6,7 +6,7 @@ That decision did NOT remove it; it opened exactly one named door,
 tests are the mechanical form of that promise: they fail if the door widens, if
 another call site appears, or if the numeric radius starts escaping.
 
-Modelled on the Stage A star audit in `hotspot3d/data/audit.py`: the guarantee is
+Modelled on the Stage A star audit in `sphare3d/data/audit.py`: the guarantee is
 checked against the source tree, not against a config flag.
 """
 from __future__ import annotations
@@ -18,14 +18,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from hotspot3d.footprint import domain as domain_mod
-from hotspot3d.footprint.api import CenterSet, Universe
-from hotspot3d.footprint.inputs import EvidenceSet, ReadOnlyHotspotRadius
-from hotspot3d.utils.errors import BlockedError
+from sphare3d.footprint import domain as domain_mod
+from sphare3d.footprint.api import CenterSet, Universe
+from sphare3d.footprint.inputs import EvidenceSet, ReadOnlyHotspotRadius
+from sphare3d.utils.errors import BlockedError
 
 pytestmark = pytest.mark.unit
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "hotspot3d"
+SRC = Path(__file__).resolve().parents[2] / "src" / "sphare3d"
 R_HOT = 9.5
 #: A value no coordinate or distance in the fixture can coincide with, so that
 #: "did r_hot leak" is decidable by equality rather than by eyeballing.

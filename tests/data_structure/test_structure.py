@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from hotspot3d.data.synthetic import (
+from sphare3d.data.synthetic import (
     CA_SPACING_A,
     CASE_NAMES,
     CASE_SPECS,
@@ -13,8 +13,8 @@ from hotspot3d.data.synthetic import (
     consecutive_ca_distances,
     make_synthetic_case,
 )
-from hotspot3d.structure.cif import parse_mmcif, render_mmcif, split_cif_row
-from hotspot3d.structure.mapping import (
+from sphare3d.structure.cif import parse_mmcif, render_mmcif, split_cif_row
+from sphare3d.structure.mapping import (
     CLASSIFIED_COHORT_COLUMNS,
     POSITIONAL_UNIVERSE_COLUMNS,
     RESIDUE_COORDINATE_COLUMNS,
@@ -22,16 +22,16 @@ from hotspot3d.structure.mapping import (
     positional_universe,
     residue_coordinates,
 )
-from hotspot3d.structure.plddt import (
+from sphare3d.structure.plddt import (
     band_for,
     band_labels,
     low_confidence_regions,
     plddt_profile,
     summarize,
 )
-from hotspot3d.structure.qc import align_numbering, assert_numbering_usable, structure_qc
-from hotspot3d.structure.sources import assert_model_admissible
-from hotspot3d.utils.errors import BlockedError, EscalationRequired
+from sphare3d.structure.qc import align_numbering, assert_numbering_usable, structure_qc
+from sphare3d.structure.sources import assert_model_admissible
+from sphare3d.utils.errors import BlockedError, EscalationRequired
 
 pytestmark = pytest.mark.unit
 
@@ -64,7 +64,7 @@ def test_clustered_case_is_spatially_tighter_than_the_random_one(cases):
     """
     import numpy as np
 
-    from hotspot3d.utils.geometry import pairwise_distances
+    from sphare3d.utils.geometry import pairwise_distances
 
     def mean_pairwise(case):
         by_index = case.structure.by_index()
@@ -113,8 +113,8 @@ def test_helix_cores_pack_in_the_real_ca_contact_range(clustered):
     """
     import numpy as np
 
-    from hotspot3d.data.synthetic import fold_layout
-    from hotspot3d.utils.geometry import cross_distances
+    from sphare3d.data.synthetic import fold_layout
+    from sphare3d.utils.geometry import cross_distances
 
     layout = fold_layout(clustered.expected["sequence_length"])
     by_index = clustered.structure.by_index()
@@ -139,8 +139,8 @@ def test_center_neighbourhoods_keep_a_long_mst_edge(cases):
     """
     import numpy as np
 
-    from hotspot3d.data.synthetic import backbone_coordinates, max_mst_edge
-    from hotspot3d.utils.geometry import cross_distances
+    from sphare3d.data.synthetic import backbone_coordinates, max_mst_edge
+    from sphare3d.utils.geometry import cross_distances
 
     for name in ("clustered", "conflict", "low_plddt", "excessive_coverage",
                  "permutation_resolution"):
@@ -258,7 +258,7 @@ def test_low_confidence_regions_are_recorded_and_never_exclude(cases):
 
 
 def test_the_low_confidence_tail_does_not_shrink_the_cohort(cases, make_ctx):
-    from hotspot3d.data.stage import run_stage_a
+    from sphare3d.data.stage import run_stage_a
 
     case = cases["low_plddt"]
     handoff = run_stage_a(make_ctx(), gene=case.gene, source=case.source)
@@ -289,7 +289,7 @@ def test_universe_and_cohort_column_sets_are_frozen(clustered):
 
 
 def test_cohort_columns_are_exactly_the_stage_b_allowlist():
-    from hotspot3d.orchestration.contracts import (
+    from sphare3d.orchestration.contracts import (
         FORBIDDEN_DOWNSTREAM_COLUMNS,
         STAGE_B_PERMITTED_COLUMNS,
     )
@@ -309,9 +309,9 @@ def test_glycine_has_no_cb_and_reports_na(clustered):
 
 
 def test_l_is_a_subset_of_u_struct(cases, config):
-    from hotspot3d.data.classify import SignificancePolicy
-    from hotspot3d.data.clinvar import normalize_records
-    from hotspot3d.data.cohort import collapse_to_residues, evaluate_records
+    from sphare3d.data.classify import SignificancePolicy
+    from sphare3d.data.clinvar import normalize_records
+    from sphare3d.data.cohort import collapse_to_residues, evaluate_records
 
     policy = SignificancePolicy.from_config(config)
     for name, case in cases.items():

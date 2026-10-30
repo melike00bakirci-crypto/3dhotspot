@@ -6,20 +6,20 @@ from pathlib import Path
 
 import pytest
 
-from hotspot3d.hotspot.stage import (
+from sphare3d.hotspot.stage import (
     EXPECTED_OUTPUTS,
     STAGES,
     is_underpowered,
     run_stage_b,
 )
-from hotspot3d.orchestration.contracts import (
+from sphare3d.orchestration.contracts import (
     HANDOFF_REQUIRED_KEYS,
     assert_handoff_shape,
 )
-from hotspot3d.utils.config import assert_frozen_methodology, load_config
-from hotspot3d.utils.errors import BlockedError, LeakageError
-from hotspot3d.utils.hashing import sha256_file, verify_manifest
-from hotspot3d.utils.io import read_tsv, write_tsv
+from sphare3d.utils.config import assert_frozen_methodology, load_config
+from sphare3d.utils.errors import BlockedError, LeakageError
+from sphare3d.utils.hashing import sha256_file, verify_manifest
+from sphare3d.utils.io import read_tsv, write_tsv
 from synthetic_hotspot import full_synthetic_run
 
 FULL = "FULL_RESULTS"

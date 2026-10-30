@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from hotspot3d.data.synthetic import (
+from sphare3d.data.synthetic import (
     CASE_NAMES,
     SyntheticCase,
     SyntheticStageASource,
@@ -20,7 +20,7 @@ from hotspot3d.data.synthetic import (
     make_synthetic_case,
     make_synthetic_source,
 )
-from hotspot3d.data.sources import assert_source_complete
+from sphare3d.data.sources import assert_source_complete
 
 pytestmark = pytest.mark.unit
 
@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_both_documented_import_paths_resolve_to_the_same_objects():
-    package = importlib.import_module("hotspot3d.data.synthetic")
+    package = importlib.import_module("sphare3d.data.synthetic")
     mirror = importlib.import_module("tests.fixtures.synthetic_clinvar")
     assert mirror.make_synthetic_case is package.make_synthetic_case
     assert mirror.SyntheticCase is package.SyntheticCase
@@ -142,7 +142,7 @@ def test_permutation_resolution_case_declares_which_floor_it_reaches():
     production B (it would need m > 5000) is a scientific-design question owned by
     `hotspot-statistics`; see the follow-up section of DECISION-B-DEFAULT-0001.
     """
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
 
     config = load_config(REPO_ROOT / "config" / "pipeline.yaml")
     q = float(config.get("fdr.q"))
@@ -179,7 +179,7 @@ def test_dispersed_case_is_more_dispersed_than_the_random_one():
     """`no_significant_hotspot` must be genuinely non-clustered, not merely small."""
     import numpy as np
 
-    from hotspot3d.utils.geometry import pairwise_distances
+    from sphare3d.utils.geometry import pairwise_distances
 
     def mean_nearest_neighbour(name):
         case = make_synthetic_case(name)
@@ -203,7 +203,7 @@ def test_records_are_clinvar_variant_summary_shaped():
 
 
 def test_every_review_star_level_including_zero_is_represented():
-    from hotspot3d.data.review_status import star_level
+    from sphare3d.data.review_status import star_level
 
     levels = {star_level(r["ReviewStatus"]) for r in make_synthetic_case("clustered").records}
     assert {0, 1, 2, 3, 4} <= levels
@@ -211,10 +211,10 @@ def test_every_review_star_level_including_zero_is_represented():
 
 
 def test_fixtures_import_without_a_circular_import_in_either_order():
-    for statement in ("import hotspot3d.structure, hotspot3d.data",
-                      "import hotspot3d.data, hotspot3d.structure",
-                      "from hotspot3d.data import run_stage_a",
-                      "from hotspot3d.structure import map_cohort"):
+    for statement in ("import sphare3d.structure, sphare3d.data",
+                      "import sphare3d.data, sphare3d.structure",
+                      "from sphare3d.data import run_stage_a",
+                      "from sphare3d.structure import map_cohort"):
         result = subprocess.run([sys.executable, "-c", statement],
                                 capture_output=True, text=True, cwd=REPO_ROOT)
         assert result.returncode == 0, f"{statement}: {result.stderr}"

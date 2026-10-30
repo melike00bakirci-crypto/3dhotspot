@@ -9,21 +9,24 @@ artefacts named at the end of this file; none of it is re-derived here.
 > numbers below.** Between `v1.0.0` and the code version used here there are 34 changed
 > files under `src/`, +1502 / −485 lines, including the replacement of the footprint
 > radius selection procedure (`DECISION-RFP-CONTAINMENT-0001`). The code version that
-> produced these numbers, `ac7cce0f`, currently exists only on branch `rfp-containment`
-> at commit `59febb7`; it is not merged to `main` (`502b3e2`) and is not tagged or
-> archived. **A new tagged release and a new Zenodo version DOI are required before this
-> paragraph can be submitted.** Until then the availability statement is not satisfiable
-> by a reader.
+> produced these numbers, `ac7cce0f`, is reachable as commit `8cf973a` — now merged to
+> `main` — but it is not tagged and not archived, and the tree no longer reproduces that
+> digest: `DECISION-RENAME-SPHARE3D-0001` renamed the pipeline from `hotspot3d` to
+> `SPHARE3D`, which changed 602 lines of file content and therefore the source digest
+> (`ac7cce0f` → `4eb89577`). See **Code version mapping** below. **A new tagged release
+> and a new Zenodo version DOI are required before this paragraph can be submitted.**
+> Until then the availability statement is not satisfiable by a reader.
 
 ---
 
 ## Draft paragraph
 
-> **Code and data availability.** The analysis pipeline (`hotspot3d`) is openly available at
-> https://github.com/melike00bakirci-crypto/3dhotspot, released under the MIT licence, and
+> **Code and data availability.** The analysis pipeline (`sphare3d`) is openly available at
+> https://github.com/melike00bakirci-crypto/sphare3d, released under the MIT licence, and
 > archived at Zenodo under DOI [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976).
-> *[PENDING: cite the version DOI of the release that contains code version `ac7cce0f` —
-> see the provenance warning above. Do not submit with the `v1.0.0` DOI.]* The pipeline is
+> *[PENDING: cite the version DOI of the release that archives commit `8cf973a` (code
+> version `ac7cce0f`), or its renamed equivalent — see the provenance warning above and
+> the code version mapping below. Do not submit with the `v1.0.0` DOI.]* The pipeline is
 > gene-independent: no step branches on a specific gene or protein, and every scientific
 > constant is fixed in a frozen, pre-registered configuration file whose SHA-256 digest is
 > recorded in each run.
@@ -116,7 +119,7 @@ RUN_ID         KCNA2_20261027T084336Z_ff721543_ac7cce0f
 config_sha256  ff7215430c7a23aec095135c63248c111269976f14fa8549ce1e7b930414f3fd
 code_version   ac7cce0f8f38efbe09e60b7e0af512a8f9695c6f970bf5c01f45f925693d525f
 results root   results_v3/
-git            branch rfp-containment, commit 59febb7 (NOT on main, NOT tagged)
+git            commit 8cf973a on main (NOT tagged, NOT archived)
 ```
 
 This is the run under the **current** frozen configuration, which incorporates
@@ -138,6 +141,26 @@ Source files within that run:
 The `RUN_ID` encodes its own provenance: the timestamp, the first eight characters of the
 configuration digest, and the first eight of the code version. Two runs are comparable —
 or knowably not — from the directory name alone.
+
+## Code version mapping
+
+`code_version` is a content digest of the source tree. `DECISION-RENAME-SPHARE3D-0001`
+renamed the pipeline, which changed file contents and therefore the digest. Every run in
+`results_v3/` was produced by the pre-rename tree, so the digest its `RUN_ID` carries is
+not reproducible from the current tree. The mapping is recorded here so a reader can still
+obtain the exact code that produced the reported numbers:
+
+| `code_version` | tree | commit | what it produced |
+|---|---|---|---|
+| `ac7cce0f` | last `hotspot3d`-named tree | `8cf973a` | every run in `results_v3/`, including the KCNA2 run cited above |
+| `4eb89577` | first `sphare3d`-named tree | the rename commit | nothing yet |
+
+`config_sha256` is unaffected and remains `ff721543`: the digest covers the effective
+parameter tree, and the only occurrence of the old name in `config/pipeline.yaml` is a
+comment. This was verified by recomputation, not assumed.
+
+To reproduce the reported run exactly, check out `8cf973a` — the package is `hotspot3d`
+there, not `sphare3d`.
 
 ## Gene set
 

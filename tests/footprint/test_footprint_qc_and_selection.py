@@ -6,14 +6,14 @@ import pytest
 
 from synthetic_footprint import lattice, synthetic_run
 
-from hotspot3d.footprint import export
-from hotspot3d.footprint.api import (CenterSet, Universe,
+from sphare3d.footprint import export
+from sphare3d.footprint.api import (CenterSet, Universe,
                                      build_footprint_contained)
-from hotspot3d.footprint.inputs import EvidenceRecord, EvidenceSet
-from hotspot3d.footprint.qc import coverage_constraint_failure, evaluate
-from hotspot3d.footprint.stage import run_phase_c
-from hotspot3d.utils.errors import EscalationRequired
-from hotspot3d.utils.io import read_tsv
+from sphare3d.footprint.inputs import EvidenceRecord, EvidenceSet
+from sphare3d.footprint.qc import coverage_constraint_failure, evaluate
+from sphare3d.footprint.stage import run_phase_c
+from sphare3d.utils.errors import EscalationRequired
+from sphare3d.utils.io import read_tsv
 
 pytestmark = pytest.mark.unit
 
@@ -79,7 +79,7 @@ def test_qc_f1_marks_inadmissible_but_keeps_every_metric(params):
 
 
 def test_qc_f1_threshold_is_read_from_config_and_is_strict(params):
-    from hotspot3d.footprint.sweep import RadiusState
+    from sphare3d.footprint.sweep import RadiusState
 
     def state(coverage):
         return RadiusState(

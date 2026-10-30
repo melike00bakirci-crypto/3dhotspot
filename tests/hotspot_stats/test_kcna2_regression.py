@@ -30,15 +30,15 @@ from math import comb
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.positional import hypergeom_sf, positional_pass
-from hotspot3d.hotspot.power import (
+from sphare3d.hotspot.positional import hypergeom_sf, positional_pass
+from sphare3d.hotspot.power import (
     BINDING_COMBINATORIAL,
     BINDING_PERMUTATION,
     LABEL_NULL,
     POSITIONAL_NULL,
     certify,
 )
-from hotspot3d.utils.geometry import cross_distances
+from sphare3d.utils.geometry import cross_distances
 
 pytestmark = pytest.mark.unit
 

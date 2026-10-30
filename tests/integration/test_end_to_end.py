@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from hotspot3d.utils.hashing import sha256_file
-from hotspot3d.utils.status import OutcomeType, RunStatus
+from sphare3d.utils.hashing import sha256_file
+from sphare3d.utils.status import OutcomeType, RunStatus
 from tests.integration._config import INTEGRATION_N_CAP
 
 pytestmark = pytest.mark.integration
@@ -33,10 +33,10 @@ def _fixtures_ready() -> bool:
 
 
 def _stages_ready() -> bool:
-    for module, func in (("hotspot3d.data.stage", "run_stage_a"),
-                         ("hotspot3d.hotspot.stage", "run_stage_b"),
-                         ("hotspot3d.footprint.stage", "run_stage_cd"),
-                         ("hotspot3d.annotation.stage", "run_stage_e")):
+    for module, func in (("sphare3d.data.stage", "run_stage_a"),
+                         ("sphare3d.hotspot.stage", "run_stage_b"),
+                         ("sphare3d.footprint.stage", "run_stage_cd"),
+                         ("sphare3d.annotation.stage", "run_stage_e")):
         try:
             mod = __import__(module, fromlist=[func])
             getattr(mod, func)
@@ -53,7 +53,7 @@ needs_impl = pytest.mark.skipif(
 def _run(case: str, tmp_path: Path, config, run_id="20250101T000000Z_aaaaaaaa_bbbbbbbb"):
     from tests.fixtures.synthetic_annotation import MockAnnotationSource
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
-    from hotspot3d.orchestration.pipeline import SourceBundle, run_pipeline
+    from sphare3d.orchestration.pipeline import SourceBundle, run_pipeline
 
     fixture = make_synthetic_case(case)
     # The Stage A fixture exposes ONE provider satisfying both the VariantSource
@@ -179,7 +179,7 @@ def test_archives_and_checksums_verify(tmp_path, config):
 
 @needs_impl
 def test_three_residue_objects_are_distinct_and_nested(tmp_path, config):
-    from hotspot3d.utils.io import read_tsv
+    from sphare3d.utils.io import read_tsv
     root = _run("clustered", tmp_path, config).run_root
     fh = root / "FULL_RESULTS" / "06_FINAL_HOTSPOTS"
     centers = {r["center_residue_index"] for r in read_tsv(fh / "significant_hotspot_centers.tsv")}
@@ -343,7 +343,7 @@ def test_unanalysable_cohort_is_a_negative_not_a_technical_failure(tmp_path, con
     """
     from tests.fixtures.synthetic_annotation import MockAnnotationSource
     from tests.fixtures.synthetic_clinvar import make_synthetic_case
-    from hotspot3d.orchestration.pipeline import SourceBundle, run_pipeline
+    from sphare3d.orchestration.pipeline import SourceBundle, run_pipeline
 
     fixture = make_synthetic_case("sparse").without_class("BLB")
     sources = SourceBundle(variant_source=fixture.source,

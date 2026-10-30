@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.data.classify import (
+from sphare3d.data.classify import (
     CLASS_BLB,
     CLASS_CONFLICT,
     CLASS_PLP,
@@ -11,8 +11,8 @@ from hotspot3d.data.classify import (
     REASON_RESIDUE_CONFLICT,
     SignificancePolicy,
 )
-from hotspot3d.data.clinvar import normalize_records
-from hotspot3d.data.cohort import (
+from sphare3d.data.clinvar import normalize_records
+from sphare3d.data.cohort import (
     ELIGIBLE_STRATUM,
     EXCLUDED_STRATUM,
     apply_structural_exclusions,
@@ -23,7 +23,7 @@ from hotspot3d.data.cohort import (
     prove_conservation,
     review_star_distribution,
 )
-from hotspot3d.utils.errors import NegativeResult
+from sphare3d.utils.errors import NegativeResult
 
 pytestmark = pytest.mark.unit
 

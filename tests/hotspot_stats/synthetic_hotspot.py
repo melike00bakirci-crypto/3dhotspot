@@ -18,11 +18,11 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from hotspot3d.orchestration.contracts import Handoff
-from hotspot3d.utils.config import load_config
-from hotspot3d.utils.hashing import manifest_for
-from hotspot3d.utils.io import write_json, write_tsv
-from hotspot3d.utils.runctx import RunContext
+from sphare3d.orchestration.contracts import Handoff
+from sphare3d.utils.config import load_config
+from sphare3d.utils.hashing import manifest_for
+from sphare3d.utils.io import write_json, write_tsv
+from sphare3d.utils.runctx import RunContext
 
 COORD_COLUMNS = ["residue_index", "aa", "x_ca", "y_ca", "z_ca", "plddt", "plddt_band",
                  "ca_usable"]

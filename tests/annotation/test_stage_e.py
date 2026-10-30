@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.annotation.schema import (
+from sphare3d.annotation.schema import (
     FORBIDDEN_UPSTREAM_KEYS,
     HANDOFF_05_PASSTHROUGH,
     MANDATORY_ROW_CONTEXT,
 )
-from hotspot3d.annotation.stage import REQUIRED_OUTPUTS, run_stage_e
-from hotspot3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.io import read_json, read_tsv
+from sphare3d.annotation.stage import REQUIRED_OUTPUTS, run_stage_e
+from sphare3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.io import read_json, read_tsv
 
 from tests.fixtures.synthetic_annotation import (
     CONFLICTING_STRONG_RESIDUE,
@@ -363,7 +363,7 @@ def test_stage_e_writes_nowhere_else(completed):
 
 
 def test_upstream_artifacts_are_unmodified(tmp_path):
-    from hotspot3d.utils.hashing import sha256_file
+    from sphare3d.utils.hashing import sha256_file
 
     run = build_synthetic_run(tmp_path)
     before = {name: sha256_file(p) for name, p in run.paths.items()}
@@ -400,7 +400,7 @@ def test_stage_is_deterministic(tmp_path):
 
 def test_upstream_modified_mid_stage_is_blocking(tmp_path, monkeypatch):
     """If an input changes underneath Stage E, every verbatim copy is invalidated."""
-    from hotspot3d.annotation import stage as stage_mod
+    from sphare3d.annotation import stage as stage_mod
 
     run = build_synthetic_run(tmp_path)
     target = run.ctx.full_results / "09_ROBUSTNESS" / "center_sensitivity.tsv"

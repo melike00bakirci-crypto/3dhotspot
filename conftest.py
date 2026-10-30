@@ -148,10 +148,10 @@ def pytest_report_header(config):
     caps = ",".join(sorted(set(actual.values())))
     fingerprint, n_files = tree_fingerprint()
     return (
-        f"hotspot3d: thread caps actual={caps} "
+        f"sphare3d: thread caps actual={caps} "
         f"(requested={TEST_THREAD_CAP}) detail={actual}\n"
-        f"hotspot3d: numpy={numpy.__version__} python={sys.version.split()[0]}\n"
-        f"hotspot3d: full-suite lock="
+        f"sphare3d: numpy={numpy.__version__} python={sys.version.split()[0]}\n"
+        f"sphare3d: full-suite lock="
         f"{'HELD' if _lock_handle else 'not taken (targeted run)'}\n"
-        f"hotspot3d: tree fingerprint={fingerprint} ({n_files} authoritative files)"
+        f"sphare3d: tree fingerprint={fingerprint} ({n_files} authoritative files)"
     )

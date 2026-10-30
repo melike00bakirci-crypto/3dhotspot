@@ -263,7 +263,7 @@ analyses** — then stop.
    objects and hotspot regions.
 9. Run the three post-primary sensitivity analyses at the frozen `r_hot` into
    `11_SENSITIVITY/`.
-10. Freeze and record the `code_version` of `src/hotspot3d/spatial/` + `src/hotspot3d/hotspot/`. Self-QC (§9),
+10. Freeze and record the `code_version` of `src/sphare3d/spatial/` + `src/sphare3d/hotspot/`. Self-QC (§9),
     provenance (§13), `handoff_02.json` (§11), stage status and report (§15).
 
 **Determinism is asserted by re-run:** identical inputs and derived seeds must produce
@@ -472,7 +472,7 @@ complete and auditable — carrying `terminal_state = "UNDERPOWERED"`,
 `qc_status = "FAIL"`, which every consumer contract already blocks on, so the chain stops
 without any downstream stage having to interpret the science. The orchestrator maps that
 payload key onto `RunStatus.UNDERPOWERED` (exit code 3);
-`hotspot3d.hotspot.stage.is_underpowered(handoff)` is the supported predicate.
+`sphare3d.hotspot.stage.is_underpowered(handoff)` is the supported predicate.
 
 - **Consumer may trust:** the three residue objects, their coordinates, `r_hot`, the reported
   significance.
@@ -495,17 +495,17 @@ payload key onto `RunStatus.UNDERPOWERED` (exit code 3);
 **Write:** `FULL_RESULTS/04_GLOBAL_CLUSTERING/**`, `05_HOTSPOT_RADIUS/**`,
 `06_FINAL_HOTSPOTS/**`, `11_SENSITIVITY/**`, each with its own `stage_status.json`,
 `warnings_<stage>.tsv`, `stage_manifest.tsv`, `figures/`, `structures/`; your own four
-`12_REPRODUCIBILITY/provenance/provenance_*.json` files; `src/hotspot3d/spatial/**`;
-`src/hotspot3d/hotspot/**`; `tests/hotspot_stats/**`;
+`12_REPRODUCIBILITY/provenance/provenance_*.json` files; `src/sphare3d/spatial/**`;
+`src/sphare3d/hotspot/**`; `tests/hotspot_stats/**`;
 `logs/<RUN_ID>/hotspot_statistics.log`.
 
 **Read-only:** `01_INPUT_RAW/`, `02_CLINVAR/`, `03_STRUCTURE_QC/` (allowlisted columns only
-in the primary path), the methodology file, `docs/`, `config/`, `src/hotspot3d/utils/`,
-`src/hotspot3d/orchestration/contracts.py`.
+in the primary path), the methodology file, `docs/`, `config/`, `src/sphare3d/utils/`,
+`src/sphare3d/orchestration/contracts.py`.
 
 **Never touch:** `07_*`, `08_*`, `09_*`, `10_*`, `00_RUN_SUMMARY/`,
 `12_REPRODUCIBILITY/` aggregates, run-root files, `REVIEW_PACK/`, `ARCHIVES/`, any other
-`src/hotspot3d/` subpackage, `.claude/`, `config/`.
+`src/sphare3d/` subpackage, `.claude/`, `config/`.
 
 ## 13. Provenance Requirements
 
@@ -528,7 +528,7 @@ the `code_version` hash of the frozen Stage B API.
 4. **Communication.** Team Lead only. If footprint, robustness or biological information
    reaches you, treat it as a **contamination event**: stop, do not act on it, and report it.
    Lead-relayed format questions are answered with format facts only.
-5. You may **expose** `src/hotspot3d/spatial/` + `src/hotspot3d/hotspot/` as a frozen, versioned, deterministic
+5. You may **expose** `src/sphare3d/spatial/` + `src/sphare3d/hotspot/` as a frozen, versioned, deterministic
    library; other agents may import it but never edit it, and it is **not** imported by the
    robustness procedure.
 
@@ -610,7 +610,7 @@ explicitly labelled **non-redefining**.
 
 ## 15b. Anomaly flags to pipeline-qa-debugger
 
-The deterministic stage-contract validator (`hotspot3d.utils.stage_contract`) runs
+The deterministic stage-contract validator (`sphare3d.utils.stage_contract`) runs
 mechanically after every stage and catches schema/handoff/output-contract
 violations on its own — you do not need to defend against those. This section is
 about something narrower: when YOU notice something that looks like a design or
@@ -660,7 +660,7 @@ directly; you do not have the Agent tool and do not route to QA yourself.
   annotation.
 - Continuing past `SIGNIFICANT_HOTSPOT_CENTERS` into footprint construction.
 - Writing to `config/`, `.claude/`, another agent's stage directory, `REVIEW_PACK/`,
-  `ARCHIVES/`, run-root aggregates, or another `src/hotspot3d/` subpackage.
+  `ARCHIVES/`, run-root aggregates, or another `src/sphare3d/` subpackage.
 - Renaming the `.partial` run root, or spawning any subagent (you hold no Agent/Task tool).
 
 ## 17. Least-Privilege Tools

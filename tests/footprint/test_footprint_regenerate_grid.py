@@ -6,10 +6,10 @@ import pytest
 
 from synthetic_footprint import synthetic_run, two_cluster_centers
 
-from hotspot3d.footprint import regenerate_grid
-from hotspot3d.footprint.grid import distance_field, occupancy_at
-from hotspot3d.footprint.stage import run_phase_c
-from hotspot3d.utils.errors import BlockedError
+from sphare3d.footprint import regenerate_grid
+from sphare3d.footprint.grid import distance_field, occupancy_at
+from sphare3d.footprint.stage import run_phase_c
+from sphare3d.utils.errors import BlockedError
 
 pytestmark = pytest.mark.unit
 

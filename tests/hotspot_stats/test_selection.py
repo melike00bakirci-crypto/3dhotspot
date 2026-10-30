@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from hotspot3d.hotspot.scan import OBJECTIVE_NAMES, RadiusResult
-from hotspot3d.hotspot.selection import run_selection
-from hotspot3d.utils.multiobjective import boundary_diagnostic
+from sphare3d.hotspot.scan import OBJECTIVE_NAMES, RadiusResult
+from sphare3d.hotspot.selection import run_selection
+from sphare3d.utils.multiobjective import boundary_diagnostic
 
 TIE_CHAIN = ["distance", "neighbor_stability", "perm_evidence_zg", "smaller_radius"]
 SELECT = dict(tie_chain=TIE_CHAIN, w_k=1.0, metric="L2", near_tie_rel=0.05,

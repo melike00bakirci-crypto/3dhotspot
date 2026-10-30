@@ -17,9 +17,9 @@ from tests.fixtures.synthetic_annotation import (  # noqa: E402
     build_synthetic_run,
 )
 
-from hotspot3d.annotation.posthoc import PosthocGate  # noqa: E402
-from hotspot3d.annotation.rubric import Rubric  # noqa: E402
-from hotspot3d.utils.config import load_config  # noqa: E402
+from sphare3d.annotation.posthoc import PosthocGate  # noqa: E402
+from sphare3d.annotation.rubric import Rubric  # noqa: E402
+from sphare3d.utils.config import load_config  # noqa: E402
 
 
 @pytest.fixture(scope="session")

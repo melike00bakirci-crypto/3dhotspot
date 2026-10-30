@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from scipy import ndimage
 
-from hotspot3d.footprint import descriptors as desc
-from hotspot3d.footprint.grid import (distance_field, make_grid, occupancy_at,
+from sphare3d.footprint import descriptors as desc
+from sphare3d.footprint.grid import (distance_field, make_grid, occupancy_at,
                                       seed_indices, seed_mask)
 
 pytestmark = pytest.mark.unit
@@ -41,7 +41,7 @@ def test_single_edt_matches_naive_per_radius_recomputation():
 
 def test_one_edt_call_serves_the_whole_sweep(monkeypatch):
     """A second transform per radius would be both wasteful and a drift source."""
-    from hotspot3d.footprint import grid as grid_mod
+    from sphare3d.footprint import grid as grid_mod
 
     calls = {"n": 0}
     original = ndimage.distance_transform_edt
@@ -111,7 +111,7 @@ def test_connectivity_is_the_largest_component_volume_fraction():
 
 
 def test_parsimony_is_one_minus_coverage():
-    from hotspot3d.footprint.sweep import RadiusState
+    from sphare3d.footprint.sweep import RadiusState
 
     state = RadiusState(
         rho=5.0, volume=1.0, surface_area=1.0, n_components=1,
@@ -211,7 +211,7 @@ def test_a_point_on_a_cell_boundary_lands_in_the_same_cell_under_any_origin():
     The invariant: shifting the origin by an exact multiple of `h` must shift every
     index by exactly that many cells and change nothing else.
     """
-    from hotspot3d.footprint.grid import GridSpec
+    from sphare3d.footprint.grid import GridSpec
 
     point = np.array([[-0.104, -0.104, -0.104]])
     shifts = (0.0, 8.0, 19.0, 27.0, 100.0)      # all exact multiples of h = 0.5
@@ -238,7 +238,7 @@ def test_the_tie_tolerance_cannot_move_a_genuine_sub_cell_offset():
     distinction in index units is 2e-3 — five hundred thousand times the tolerance. A
     point genuinely inside a cell must stay there.
     """
-    from hotspot3d.footprint.grid import GridSpec
+    from sphare3d.footprint.grid import GridSpec
 
     spec = GridSpec(origin=(0.0, 0.0, 0.0), shape=(100, 100, 100), h=0.5,
                     h_requested=0.5, fallback_applied=False)

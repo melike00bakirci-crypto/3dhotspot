@@ -8,14 +8,14 @@ import pytest
 
 from synthetic_footprint import synthetic_run, two_cluster_centers
 
-from hotspot3d.footprint.stage import run_phase_c
-from hotspot3d.robustness import perturb
-from hotspot3d.robustness.classify import CLASSIFICATION_FIELDS
-from hotspot3d.robustness.compare import GEOMETRY_FIELDS
-from hotspot3d.robustness.stage import (EXPECTED_09, assert_no_hotspot_statistics_import,
+from sphare3d.footprint.stage import run_phase_c
+from sphare3d.robustness import perturb
+from sphare3d.robustness.classify import CLASSIFICATION_FIELDS
+from sphare3d.robustness.compare import GEOMETRY_FIELDS
+from sphare3d.robustness.stage import (EXPECTED_09, assert_no_hotspot_statistics_import,
                                         run_phase_d)
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.io import read_tsv
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.io import read_tsv
 
 pytestmark = pytest.mark.unit
 
@@ -174,7 +174,7 @@ def test_the_vacuous_retained_center_form_is_not_emitted(phase_d_run):
     strong result while carrying no information. The rejection is recorded in
     RECURRENCE_DEFINITION so it cannot be quietly reinstated.
     """
-    from hotspot3d.robustness.sensitivity import (CENTER_SENSITIVITY_COLUMNS,
+    from sphare3d.robustness.sensitivity import (CENTER_SENSITIVITY_COLUMNS,
                                                   RECURRENCE_DEFINITION)
 
     ctx, _, _, handoff_04 = phase_d_run
@@ -191,7 +191,7 @@ def test_the_vacuous_retained_center_form_is_not_emitted(phase_d_run):
 
 def test_recurrence_denominator_zero_gives_null_not_zero():
     """"Never measured" must not be presentable as "never recurred"."""
-    from hotspot3d.robustness.sensitivity import center_influence
+    from sphare3d.robustness.sensitivity import center_influence
 
     class _R:
         removed, residues = (), frozenset()
@@ -205,7 +205,7 @@ def test_recurrence_denominator_zero_gives_null_not_zero():
 
 
 def test_failed_iterations_count_as_non_recurrence():
-    from hotspot3d.robustness.sensitivity import center_influence
+    from sphare3d.robustness.sensitivity import center_influence
 
     class _R:
         def __init__(self, removed, residues, failed):
@@ -315,7 +315,7 @@ def test_profile_exposes_the_keys_the_lead_reads_verbatim(phase_d_run):
 
 def test_limited_robustness_uses_its_own_warning_code():
     """Instability is surfaced under a code that names it, never a proxy."""
-    from hotspot3d.utils.status import WARNING_CODES, Severity
+    from sphare3d.utils.status import WARNING_CODES, Severity
 
     assert WARNING_CODES["LIMITED_GEOMETRIC_ROBUSTNESS"] == Severity.MAJOR
 
@@ -335,7 +335,7 @@ def test_handoff_04_declares_the_scope_of_the_result(phase_d_run):
 
 def test_the_cohort_is_untouched_by_perturbation(phase_d_run):
     ctx, phase_c, _, _ = phase_d_run
-    from hotspot3d.utils.hashing import sha256_file
+    from sphare3d.utils.hashing import sha256_file
 
     cohort = phase_c.inputs.paths["classified_cohort.tsv"]
     assert sha256_file(cohort) == phase_c.inputs.hashes["classified_cohort.tsv"]
@@ -381,7 +381,7 @@ def test_a_failed_iteration_keeps_its_place_with_jaccard_zero(monkeypatch,
 
 def test_the_robustness_procedure_never_re_selects_r_fp():
     """DECISION-STAGE-D-FIXED-RFP-0001, the source-level pin required by it."""
-    from hotspot3d.robustness.stage import assert_no_radius_optimization_in_perturb
+    from sphare3d.robustness.stage import assert_no_radius_optimization_in_perturb
 
     assert_no_radius_optimization_in_perturb()      # raises BlockedError on violation
     assert perturb.reconstruct_at is not None        # actually importable, not just named
@@ -405,7 +405,7 @@ def test_no_stage_d_iteration_invokes_footprint_radius_optimization(monkeypatch,
     reintroduces per-iteration radius selection, this test fails on the call
     count, not merely on an import-time source scan.
     """
-    import hotspot3d.footprint.api as api_mod
+    import sphare3d.footprint.api as api_mod
 
     calls = []
     real_determination = api_mod.build_footprint_contained
@@ -415,8 +415,8 @@ def test_no_stage_d_iteration_invokes_footprint_radius_optimization(monkeypatch,
         return real_determination(*args, **kwargs)
 
     monkeypatch.setattr(api_mod, "build_footprint_contained", spy)
-    monkeypatch.setattr("hotspot3d.footprint.stage.build_footprint_contained", spy)
-    monkeypatch.setattr("hotspot3d.robustness.stage.build_footprint_contained", spy)
+    monkeypatch.setattr("sphare3d.footprint.stage.build_footprint_contained", spy)
+    monkeypatch.setattr("sphare3d.robustness.stage.build_footprint_contained", spy)
 
     ctx, upstream = synthetic_run(tmp_path, center_ids=two_cluster_centers()[:4])
     handoff_03, phase_c = run_phase_c(ctx, upstream=upstream)
@@ -504,9 +504,9 @@ def test_cost_preflight_escalates_before_iteration_one(tmp_path):
     """
     import yaml
 
-    from hotspot3d.utils.config import load_config
-    from hotspot3d.utils.errors import EscalationRequired
-    from hotspot3d.utils.runctx import RunContext
+    from sphare3d.utils.config import load_config
+    from sphare3d.utils.errors import EscalationRequired
+    from sphare3d.utils.runctx import RunContext
     from synthetic_footprint import CONFIG_PATH, two_cluster_centers, write_upstream
     from synthetic_footprint import lattice
 
@@ -540,8 +540,8 @@ def test_cost_preflight_is_dormant_when_no_budget_is_configured(tmp_path):
     """A null budget keeps the escalation path dormant — the pre-activation behaviour."""
     import yaml
 
-    from hotspot3d.utils.config import load_config
-    from hotspot3d.robustness.params import RobustnessParams
+    from sphare3d.utils.config import load_config
+    from sphare3d.robustness.params import RobustnessParams
     from synthetic_footprint import CONFIG_PATH
 
     overlay = tmp_path / "no_budget.yaml"

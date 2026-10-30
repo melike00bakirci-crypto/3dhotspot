@@ -1,11 +1,11 @@
-# hotspot3d
+# sphare3d
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22237976.svg)](https://doi.org/10.5281/zenodo.22237976)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants.**
 
-`hotspot3d` takes an HGNC gene symbol, pulls the ClinVar missense record and the AlphaFold
+`sphare3d` takes an HGNC gene symbol, pulls the ClinVar missense record and the AlphaFold
 structure for its MANE Select transcript, and asks whether pathogenic variants cluster in
 three-dimensional space more than the structure itself would produce by chance. Where they do,
 it delimits the hotspot, builds a geometric *footprint* around it, stress-tests that footprint
@@ -43,7 +43,7 @@ These are structural, not stylistic. Most of the code exists to enforce them.
 from gene-specific *data*, never from gene-specific *code*.
 
 **Frozen, pre-registered methodology.** Every scientific constant that could be tuned to
-influence an outcome is listed in `FROZEN_ASSERTIONS` (`src/hotspot3d/utils/config.py`) and
+influence an outcome is listed in `FROZEN_ASSERTIONS` (`src/sphare3d/utils/config.py`) and
 re-checked against `config/pipeline.yaml` before any stage executes. Drift aborts the run with
 `BLOCKED` rather than silently producing a different analysis. Changing one of these requires an
 authorised decision record in `docs/decisions/`.
@@ -70,8 +70,8 @@ reports `COMPLETED_NEGATIVE`. Neither is repaired into something more publishabl
 Requires Python ≥ 3.10. This project uses [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-git clone git@github-melike:melike00bakirci-crypto/3dhotspot.git
-cd 3dhotspot
+git clone git@github-melike:melike00bakirci-crypto/sphare3d.git
+cd sphare3d
 
 uv venv
 source .venv/bin/activate
@@ -85,8 +85,8 @@ Runtime dependencies: `numpy`, `scipy`, `pandas`, `pyyaml`, `scikit-image`, `sci
 Verify the install and the methodology guard:
 
 ```bash
-hotspot3d version
-hotspot3d validate-config     # → CONFIG VALID — frozen methodology constants intact
+sphare3d version
+sphare3d validate-config     # → CONFIG VALID — frozen methodology constants intact
 ```
 
 `validate-config` also prints the `config_sha256` recorded in every run's provenance.
@@ -97,10 +97,10 @@ hotspot3d validate-config     # → CONFIG VALID — frozen methodology constant
 
 ```bash
 # Full run against live ClinVar + AlphaFold
-hotspot3d run --gene TP53
+sphare3d run --gene TP53
 
 # Offline run against a bundled synthetic fixture — no network
-hotspot3d run --gene SYNTH --synthetic-case clustered
+sphare3d run --gene SYNTH --synthetic-case clustered
 ```
 
 Results land in `results/<GENE>/<GENE>_<RUN_ID>/`. Start with `REVIEW_PACK/key_metrics.tsv`
@@ -111,10 +111,10 @@ and `00_RUN_SUMMARY/`.
 ## Command-line interface
 
 ```
-hotspot3d run --gene GENE [options]
-hotspot3d validate-config
-hotspot3d show-config [KEY]
-hotspot3d version
+sphare3d run --gene GENE [options]
+sphare3d validate-config
+sphare3d show-config [KEY]
+sphare3d version
 ```
 
 ### `run` options
@@ -130,7 +130,7 @@ hotspot3d version
 | `--quiet` | off | Suppress the terminal summary |
 
 `show-config` with no key dumps the fully resolved configuration; with a dotted key
-(`hotspot3d show-config fdr.q`) it prints one value.
+(`sphare3d show-config fdr.q`) it prints one value.
 
 Exit codes: `0` success, `2` blocked (invalid config, or a stage that could not proceed).
 
@@ -140,7 +140,7 @@ Exit codes: `0` success, `2` blocked (invalid config, or a stage that could not 
 
 Five scientific stages write into thirteen numbered output directories. Each directory has
 exactly one owning agent, and write scope is enforced at runtime by `assert_may_write`
-(`src/hotspot3d/utils/runctx.py`) — a stage physically cannot write outside its own territory.
+(`src/sphare3d/utils/runctx.py`) — a stage physically cannot write outside its own territory.
 
 ### Stage A — input preparation and QC · `data-structure`
 
@@ -304,8 +304,8 @@ FGFR3_20260819T094511Z_4ec9d6a8_902e1b03
 ```
 
 So two runs are directly comparable — or knowably not — from their directory names alone,
-without opening a single file. Current values are printed by `hotspot3d validate-config`
-(`config_sha256`) and `hotspot3d version` (`code_version`).
+without opening a single file. Current values are printed by `sphare3d validate-config`
+(`config_sha256`) and `sphare3d version` (`code_version`).
 
 ---
 
@@ -331,7 +331,7 @@ than scrolling past.
 ## Repository layout
 
 ```
-src/hotspot3d/
+src/sphare3d/
 ├── data/           Stage A — ClinVar, classification, AlphaFold, QC, mapping
 ├── spatial/        Ripley's K, pair correlation, the structure-aware null
 ├── hotspot/        Stage B — radius scan, selection, permutation, FDR
@@ -363,7 +363,7 @@ To share these outputs, use a data repository built for the size — Zenodo, Fig
 institutional store — and cite the DOI here. Git LFS is possible but would need paid data packs
 at this volume.
 
-Any run is regenerable from a clean checkout with `hotspot3d run --gene <GENE>`, since the
+Any run is regenerable from a clean checkout with `sphare3d run --gene <GENE>`, since the
 configuration, seed and code version are all pinned.
 
 ---

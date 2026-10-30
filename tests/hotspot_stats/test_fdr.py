@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.fdr import benjamini_hochberg, bh_adjust, by_constant
+from sphare3d.hotspot.fdr import benjamini_hochberg, bh_adjust, by_constant
 
 Q = 0.05
 

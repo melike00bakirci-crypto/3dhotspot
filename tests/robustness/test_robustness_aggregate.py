@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.robustness.aggregate import (bca_interval, preservation_frequency,
+from sphare3d.robustness.aggregate import (bca_interval, preservation_frequency,
                                             summarize)
 
 pytestmark = pytest.mark.unit

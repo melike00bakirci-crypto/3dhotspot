@@ -35,8 +35,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from hotspot3d.annotation.schema import MANDATORY_ROW_CONTEXT, assert_mandatory_context
-from hotspot3d.annotation.stage import _per_center_influence
+from sphare3d.annotation.schema import MANDATORY_ROW_CONTEXT, assert_mandatory_context
+from sphare3d.annotation.stage import _per_center_influence
 
 pytestmark = pytest.mark.unit
 

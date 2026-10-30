@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "hotspot3d: gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
+title: "SPHARE3D: gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
 abstract: >-
-  hotspot3d takes an HGNC gene symbol, retrieves the ClinVar missense record and
+  SPHARE3D takes an HGNC gene symbol, retrieves the ClinVar missense record and
   the AlphaFold structure for its MANE Select transcript, and tests whether
   pathogenic missense variants cluster in three-dimensional space more than the
   structure itself would produce by chance under a structure-aware positional
@@ -23,7 +23,7 @@ version: 1.0.0
 doi: "10.5281/zenodo.22237976"
 date-released: "2026-09-01"
 license: MIT
-repository-code: "https://github.com/melike00bakirci-crypto/3dhotspot"
+repository-code: "https://github.com/melike00bakirci-crypto/sphare3d"
 keywords:
   - bioinformatics
   - structural-bioinformatics

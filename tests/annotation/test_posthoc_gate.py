@@ -4,14 +4,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.annotation.mechanisms import curate
-from hotspot3d.annotation.posthoc import (
+from sphare3d.annotation.mechanisms import curate
+from sphare3d.annotation.posthoc import (
     benjamini_hochberg,
     evaluate_gate,
     gate_failure_record,
     run_posthoc_spatial,
 )
-from hotspot3d.annotation.rubric import Evidence
+from sphare3d.annotation.rubric import Evidence
 
 from tests.fixtures.synthetic_annotation import coords_for, make_mechanism_records
 

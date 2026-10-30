@@ -18,14 +18,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.scan import (
+from sphare3d.hotspot.scan import (
     ADMISSIBILITY_RULES,
     OBJECTIVE_NAMES,
     SIGNIFICANCE_CONDITIONED_DIAGNOSTICS,
     RadiusResult,
     scan_one_radius,
 )
-from hotspot3d.hotspot.selection import run_selection
+from sphare3d.hotspot.selection import run_selection
 
 pytestmark = pytest.mark.unit
 
@@ -60,7 +60,7 @@ def test_the_two_rule_sets_are_disjoint_and_named():
 
 
 def test_config_declares_exactly_the_rules_the_code_applies():
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
 
     cfg = load_config("config/pipeline.yaml")
     assert cfg.get("radius_qc.significance_may_determine_admissibility") is False
@@ -78,8 +78,8 @@ def test_a_declared_rule_the_code_does_not_apply_blocks_the_stage(tmp_path):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from synthetic_hotspot import full_synthetic_run
 
-    from hotspot3d.hotspot.stage import run_stage_b
-    from hotspot3d.utils.errors import BlockedError
+    from sphare3d.hotspot.stage import run_stage_b
+    from sphare3d.utils.errors import BlockedError
 
     ctx, handoff, _ = full_synthetic_run(
         tmp_path, B=200,

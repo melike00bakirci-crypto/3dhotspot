@@ -1,7 +1,7 @@
-# 3Dhotspot — standing operating procedure
+# SPHARE3D — standing operating procedure
 
 Instructions for Claude Code sessions acting as Lead in this repo, in particular for
-`hotspot3d run --gene GENE` executions. This applies to every future gene run unless the user
+`sphare3d run --gene GENE` executions. This applies to every future gene run unless the user
 explicitly says otherwise for that run.
 
 ## Gene run defaults

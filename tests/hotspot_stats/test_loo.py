@@ -4,8 +4,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.loo import kappa_is_boundary_neutral, leave_one_out
-from hotspot3d.utils.geometry import mcc_from_confusion
+from sphare3d.hotspot.loo import kappa_is_boundary_neutral, leave_one_out
+from sphare3d.utils.geometry import mcc_from_confusion
 
 KAPPA = 2.0
 

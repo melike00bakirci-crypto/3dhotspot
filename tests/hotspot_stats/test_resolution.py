@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.hotspot.resolution import K_TARGET, b_recommendation, evaluate
+from sphare3d.hotspot.resolution import K_TARGET, b_recommendation, evaluate
 
 LADDER = [10_000, 100_000, 1_000_000, 10_000_000]
 MAX_B = 10_000_000

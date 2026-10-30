@@ -32,11 +32,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from hotspot3d.utils.figures import DETERMINISTIC_RCPARAMS
+from sphare3d.utils.figures import DETERMINISTIC_RCPARAMS
 
 pytestmark = pytest.mark.integration
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "hotspot3d"
+SRC = Path(__file__).resolve().parents[2] / "src" / "sphare3d"
 
 #: Every module that writes figures. Each must apply the shared settings, because
 #: any of them may be the first to import matplotlib in a given process.
@@ -62,7 +62,7 @@ class _Stats:
 
 
 def _render_f1() -> dict[str, str]:
-    from hotspot3d.hotspot.figures import figure_f1_ripley
+    from sphare3d.hotspot.figures import figure_f1_ripley
 
     out = Path(tempfile.mkdtemp())
     figure_f1_ripley(out, {"PLP": _Stats(), "BLB": _Stats()})
@@ -82,7 +82,7 @@ def test_stage_a_drawing_first_does_not_break_stage_b_figures():
     assert before_a == before_b, "Stage B figures are not reproducible even alone"
 
     # Exactly what Stage A does before drawing any of its own figures.
-    from hotspot3d.data.figures import _pyplot
+    from sphare3d.data.figures import _pyplot
     _pyplot()
 
     assert matplotlib.rcParams["svg.hashsalt"] == DETERMINISTIC_RCPARAMS["svg.hashsalt"], (

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from hotspot3d.data.sources import (
+from sphare3d.data.sources import (
     ClinVarClient,
     GeneResolution,
     LiveStageASource,
@@ -13,8 +13,8 @@ from hotspot3d.data.sources import (
     assert_release_metadata,
     assert_source_complete,
 )
-from hotspot3d.data.stage import EXPECTED_FILES, STAGES, run_stage_a
-from hotspot3d.orchestration.contracts import (
+from sphare3d.data.stage import EXPECTED_FILES, STAGES, run_stage_a
+from sphare3d.orchestration.contracts import (
     FORBIDDEN_DOWNSTREAM_COLUMNS,
     HANDOFF_REQUIRED_KEYS,
     QC_FAIL,
@@ -24,10 +24,10 @@ from hotspot3d.orchestration.contracts import (
     assert_handoff_shape,
     load_handoff,
 )
-from hotspot3d.structure.sources import AlphaFoldClient
-from hotspot3d.utils.errors import BlockedError, EscalationRequired
-from hotspot3d.utils.io import read_json, read_tsv
-from hotspot3d.utils.status import Status
+from sphare3d.structure.sources import AlphaFoldClient
+from sphare3d.utils.errors import BlockedError, EscalationRequired
+from sphare3d.utils.io import read_json, read_tsv
+from sphare3d.utils.status import Status
 
 pytestmark = pytest.mark.unit
 
@@ -246,7 +246,7 @@ def test_cohort_summary_reports_n_b_prominently_and_the_v2_additions(clustered, 
 
 
 def test_raw_inputs_carry_a_sha256_sidecar(clustered, run):
-    from hotspot3d.utils.hashing import sha256_file
+    from sphare3d.utils.hashing import sha256_file
 
     ctx, _ = run(clustered)
     raw = ctx.full_results / "01_INPUT_RAW"

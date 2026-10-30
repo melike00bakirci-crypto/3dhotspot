@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "hotspot3d"
+SRC = Path(__file__).resolve().parents[2] / "src" / "sphare3d"
 AGENT_PKGS = {
     "data-structure": ["data", "structure"],
     "hotspot-statistics": ["spatial", "hotspot"],
@@ -97,7 +97,7 @@ def test_no_hardcoded_scientific_constants():
 
 
 def test_frozen_methodology_assertions_hold(config):
-    from hotspot3d.utils.config import assert_frozen_methodology
+    from sphare3d.utils.config import assert_frozen_methodology
     assert_frozen_methodology(config)
 
 
@@ -116,7 +116,7 @@ def test_production_config_ships_the_full_robustness_budget(repo_root):
     version above proves the overlay does not violate them, which is a different
     claim from the shipped configuration being valid.
     """
-    from hotspot3d.utils.config import assert_frozen_methodology, load_config
+    from sphare3d.utils.config import assert_frozen_methodology, load_config
 
     shipped = load_config(repo_root / "config" / "pipeline.yaml")
     assert shipped.get("robustness.N_CAP") == 10000, (
@@ -137,9 +137,9 @@ def test_production_config_freezes_the_compound_significance_ruling(repo_root):
     Asserted against the shipped file and against the behaviour it produces, since
     the value alone would not prove the classifier honours it.
     """
-    from hotspot3d.data.classify import (REASON_NON_BINARY, SIG_BLB, SIG_PLP,
+    from sphare3d.data.classify import (REASON_NON_BINARY, SIG_BLB, SIG_PLP,
                                          SignificancePolicy)
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
 
     shipped = load_config(repo_root / "config" / "pipeline.yaml")
     assert shipped.get("clinvar.compound_significance_policy") == "whole_field", (
@@ -183,8 +183,8 @@ def test_production_config_activates_the_stage_d_cost_preflight(repo_root):
     hours in. The threshold is the upper bound of the cost envelope the config
     itself states for this stage, not a new invented one.
     """
-    from hotspot3d.robustness.params import RobustnessParams
-    from hotspot3d.utils.config import load_config
+    from sphare3d.robustness.params import RobustnessParams
+    from sphare3d.utils.config import load_config
 
     shipped = load_config(repo_root / "config" / "pipeline.yaml")
     assert shipped.get("robustness.N_CAP") == 10000, (
@@ -207,7 +207,7 @@ def test_production_config_activates_the_stage_d_cost_preflight(repo_root):
 def test_overlaid_config_verifies_against_its_own_sources(repo_root, tmp_path):
     """A gene overlay is a declared deviation, not a freeze violation.
 
-    ``hotspot3d --gene-config`` builds an overlaid config, and its digest is a
+    ``sphare3d --gene-config`` builds an overlaid config, and its digest is a
     COMPOSITE of both sources — yet it is 64 hex characters like any plain file
     hash, so the Stage A freeze check cannot infer the form from the digest. It
     must ask the config to recompute its own, which is what this pins.
@@ -218,7 +218,7 @@ def test_overlaid_config_verifies_against_its_own_sources(repo_root, tmp_path):
     Stage A's acceptance of an overlay is covered end to end as well: the whole
     integration package now runs under one (``tests/integration/conftest.py``).
     """
-    from hotspot3d.utils.config import load_config
+    from sphare3d.utils.config import load_config
 
     base = repo_root / "config" / "pipeline.yaml"
     overlay = tmp_path / "overlay.yaml"
@@ -273,7 +273,7 @@ def test_footprint_robustness_does_not_import_hotspot_statistics():
     this is the structural guarantee that the withdrawn full-pipeline-rerun design
     cannot come back, whatever the prose says.
     """
-    forbidden = ("hotspot3d.spatial", "hotspot3d.hotspot")
+    forbidden = ("sphare3d.spatial", "sphare3d.hotspot")
     offenders = []
     for path in _py_files("footprint", "robustness"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -291,7 +291,7 @@ def test_footprint_robustness_does_not_import_hotspot_statistics():
 
 def test_stage_b_does_not_import_footprint_or_annotation():
     """Information barrier: discovery cannot see geometry or biology."""
-    forbidden = {"hotspot3d.footprint", "hotspot3d.robustness", "hotspot3d.annotation"}
+    forbidden = {"sphare3d.footprint", "sphare3d.robustness", "sphare3d.annotation"}
     offenders = []
     for path in _py_files("spatial", "hotspot"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -316,7 +316,7 @@ def test_footprint_robustness_does_not_import_annotation():
                 mod = node.module
             elif isinstance(node, ast.Import):
                 mod = node.names[0].name
-            if mod and mod.startswith("hotspot3d.annotation"):
+            if mod and mod.startswith("sphare3d.annotation"):
                 offenders.append(f"{path.relative_to(SRC)}: imports {mod}")
     assert not offenders, "Barrier violation:\n" + "\n".join(offenders)
 
@@ -327,7 +327,7 @@ def test_annotation_never_imported_by_upstream():
     for path in _py_files("data", "structure", "spatial", "hotspot", "footprint",
                           "robustness"):
         text = path.read_text(encoding="utf-8")
-        if "hotspot3d.annotation" in text:
+        if "sphare3d.annotation" in text:
             offenders.append(str(path.relative_to(SRC)))
     assert not offenders, f"Upstream depends on annotation: {offenders}"
 
@@ -402,7 +402,7 @@ def test_agents_use_shared_multiobjective_machinery():
 # --------------------------------------------------------------------------- #
 
 def test_stage_ownership_partition_is_disjoint():
-    from hotspot3d.utils.runctx import AGENT_WRITE_SCOPE, STAGE_OWNERS
+    from sphare3d.utils.runctx import AGENT_WRITE_SCOPE, STAGE_OWNERS
     seen: dict[str, str] = {}
     for agent, stages in AGENT_WRITE_SCOPE.items():
         for stage in stages:
@@ -415,7 +415,7 @@ def test_stage_ownership_partition_is_disjoint():
 
 
 def test_reads_flow_strictly_upstream():
-    from hotspot3d.utils.runctx import AGENT_READ_SCOPE, AGENT_WRITE_SCOPE
+    from sphare3d.utils.runctx import AGENT_READ_SCOPE, AGENT_WRITE_SCOPE
     order = ["data-structure", "hotspot-statistics", "footprint-robustness",
              "biological-annotation"]
     for i, agent in enumerate(order):
@@ -428,7 +428,7 @@ def test_reads_flow_strictly_upstream():
 
 def test_manifest_expected_files_match_output_contract():
     """Every canonical filename named in the Output Contract is registered."""
-    from hotspot3d.reporting.manifest import EXPECTED
+    from sphare3d.reporting.manifest import EXPECTED
     required = {
         "02_CLINVAR": {"variants_missense_all.tsv", "variants_residue_level.tsv",
                        "variants_excluded_from_primary.tsv",
@@ -456,8 +456,8 @@ def test_stage_e_read_contract_reconciles_with_output_contract():
     upstream stage actually emits, so an upstream rename fails here rather than
     surfacing as a BLOCKING runtime error mid-run.
     """
-    from hotspot3d.annotation.inputs import UPSTREAM_PATHS
-    from hotspot3d.reporting.manifest import EXPECTED
+    from sphare3d.annotation.inputs import UPSTREAM_PATHS
+    from sphare3d.reporting.manifest import EXPECTED
 
     unregistered = []
     for key, (stage, rel) in sorted(UPSTREAM_PATHS.items()):
@@ -472,8 +472,8 @@ def test_stage_e_read_contract_reconciles_with_output_contract():
 
 def test_stage_e_reads_nothing_it_may_not_read():
     """Stage E's declared reads must all lie inside its permitted read scope."""
-    from hotspot3d.annotation.inputs import UPSTREAM_PATHS
-    from hotspot3d.utils.runctx import AGENT_READ_SCOPE
+    from sphare3d.annotation.inputs import UPSTREAM_PATHS
+    from sphare3d.utils.runctx import AGENT_READ_SCOPE
 
     allowed = AGENT_READ_SCOPE["biological-annotation"]
     violations = [f"{k}: {stage}" for k, (stage, _rel) in UPSTREAM_PATHS.items()
@@ -482,7 +482,7 @@ def test_stage_e_reads_nothing_it_may_not_read():
 
 
 def test_handoff_required_keys_cover_the_chain():
-    from hotspot3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
+    from sphare3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
     assert set(HANDOFF_REQUIRED_KEYS) == {
         "handoff_01", "handoff_02", "handoff_03", "handoff_04", "handoff_05"}
     # the three residue objects and the r_hot/r_fp separation must be visible
@@ -495,7 +495,7 @@ def test_handoff_required_keys_cover_the_chain():
 
 def test_handoff_05_cannot_influence_discovery():
     """Nothing in the terminal handoff may name a discovery parameter."""
-    from hotspot3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
+    from sphare3d.orchestration.contracts import HANDOFF_REQUIRED_KEYS
     banned = {"r_hot", "hotspot_radius", "r_fp", "footprint_radius", "q", "B",
               "fdr_method", "coverage_threshold"}
     assert not (set(HANDOFF_REQUIRED_KEYS["handoff_05"]) & banned)
@@ -506,7 +506,7 @@ def test_handoff_05_cannot_influence_discovery():
 # --------------------------------------------------------------------------- #
 
 def test_seed_derivation_is_context_not_order_dependent():
-    from hotspot3d.utils.seeds import SeedRegistry, derive_seed
+    from sphare3d.utils.seeds import SeedRegistry, derive_seed
     a = SeedRegistry(20250101, "RUN")
     b = SeedRegistry(20250101, "RUN")
     ctxs = ["scan|r=7.5", "final_detection", "iter|0003", "global_null|PLP"]
@@ -518,7 +518,7 @@ def test_seed_derivation_is_context_not_order_dependent():
 
 
 def test_warning_codes_are_frozen_enum():
-    from hotspot3d.utils.status import WARNING_CODES, Warning_
+    from sphare3d.utils.status import WARNING_CODES, Warning_
     for code in ("PERMUTATION_RESOLUTION_LIMITED", "FALLBACK_RADIUS_DOMAIN",
                  "EXCESSIVE_FOOTPRINT_COVERAGE",
                  "FOOTPRINT_COVERAGE_CONSTRAINT_FAILURE", "NO_SIGNIFICANT_HOTSPOTS"):
@@ -528,7 +528,7 @@ def test_warning_codes_are_frozen_enum():
 
 
 def test_tsv_conventions():
-    from hotspot3d.utils.io import fmt_value
+    from sphare3d.utils.io import fmt_value
     assert fmt_value(None) == "NA"
     assert fmt_value("") == "NA"
     assert fmt_value(True) == "TRUE"
@@ -539,6 +539,6 @@ def test_tsv_conventions():
 
 
 def test_negative_and_failure_are_distinct_types():
-    from hotspot3d.utils.errors import BlockedError, NegativeResult
+    from sphare3d.utils.errors import BlockedError, NegativeResult
     assert not issubclass(NegativeResult, BlockedError)
     assert not issubclass(BlockedError, NegativeResult)

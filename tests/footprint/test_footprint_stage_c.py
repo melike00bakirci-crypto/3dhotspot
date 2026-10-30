@@ -7,11 +7,11 @@ import pytest
 
 from synthetic_footprint import synthetic_run, two_cluster_centers
 
-from hotspot3d.footprint.freeze import load_freeze, verify_freeze
-from hotspot3d.footprint.inputs import ReadOnlyHotspotRadius
-from hotspot3d.footprint.stage import EXPECTED_07, EXPECTED_08, run_phase_c
-from hotspot3d.utils.errors import BlockedError
-from hotspot3d.utils.io import read_tsv
+from sphare3d.footprint.freeze import load_freeze, verify_freeze
+from sphare3d.footprint.inputs import ReadOnlyHotspotRadius
+from sphare3d.footprint.stage import EXPECTED_07, EXPECTED_08, run_phase_c
+from sphare3d.utils.errors import BlockedError
+from sphare3d.utils.io import read_tsv
 
 pytestmark = pytest.mark.unit
 
@@ -122,7 +122,7 @@ def test_r_hot_cannot_be_used_as_a_number_in_a_footprint_context():
 def test_footprint_api_signature_never_mentions_r_hot():
     import inspect
 
-    from hotspot3d.footprint import api
+    from sphare3d.footprint import api
 
     for name in ("build_footprint", "reconstruct_at", "occupancy_on_grid"):
         parameters = inspect.signature(getattr(api, name)).parameters

@@ -21,7 +21,7 @@ re-execution design A7/F11 prohibits under any name. The registered
 ``ROBUSTNESS_ITERATION_UNDERPOWERED`` warning code (ADVISORY) therefore has no
 operational referent under the frozen design and is never emitted here — pinned
 below rather than left to be mistaken for an oversight. See the finding recorded
-in ``hotspot3d.robustness.perturb``'s module docstring; the Lead makes the final
+in ``sphare3d.robustness.perturb``'s module docstring; the Lead makes the final
 ruling on this investigation.
 """
 from __future__ import annotations
@@ -36,15 +36,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "footprint"))
 
 from synthetic_footprint import synthetic_run, two_cluster_centers      # noqa: E402
 
-from hotspot3d.footprint.stage import run_phase_c                       # noqa: E402
-from hotspot3d.robustness.perturb import (STATUS_GEOMETRY_FAULT,        # noqa: E402
+from sphare3d.footprint.stage import run_phase_c                       # noqa: E402
+from sphare3d.robustness.perturb import (STATUS_GEOMETRY_FAULT,        # noqa: E402
                                           STATUS_OK)
-from hotspot3d.robustness.stage import (V2_SECTION8_UNDERPOWERED_APPLICABLE,  # noqa: E402
+from sphare3d.robustness.stage import (V2_SECTION8_UNDERPOWERED_APPLICABLE,  # noqa: E402
                                         assert_no_hotspot_statistics_import,
                                         run_phase_d)
-from hotspot3d.utils.config import load_config                          # noqa: E402
-from hotspot3d.utils.io import read_tsv                                 # noqa: E402
-from hotspot3d.utils.status import WARNING_CODES, Severity              # noqa: E402
+from sphare3d.utils.config import load_config                          # noqa: E402
+from sphare3d.utils.io import read_tsv                                 # noqa: E402
+from sphare3d.utils.status import WARNING_CODES, Severity              # noqa: E402
 
 pytestmark = pytest.mark.unit
 
@@ -66,10 +66,10 @@ def test_the_frozen_keys_cited_by_the_investigation_are_exactly_as_recorded():
 # --- the mechanical barrier: §5.4's implementation is unreachable from Phase D -
 
 def test_hotspot_power_certificate_module_is_unreachable_from_phase_d():
-    """hotspot/power.py implements §5.4; hotspot3d.hotspot as a whole is forbidden."""
-    from hotspot3d.robustness.stage import FORBIDDEN_IMPORTS
+    """hotspot/power.py implements §5.4; sphare3d.hotspot as a whole is forbidden."""
+    from sphare3d.robustness.stage import FORBIDDEN_IMPORTS
 
-    assert "hotspot3d.hotspot" in FORBIDDEN_IMPORTS
+    assert "sphare3d.hotspot" in FORBIDDEN_IMPORTS
     assert_no_hotspot_statistics_import()      # raises BlockedError on any violation
 
 
@@ -89,8 +89,8 @@ def test_no_footprint_or_robustness_source_emits_the_underpowered_code():
     checked for — the code is named in prose (module docstrings, this file) to
     document the investigation, which is not an emission.
     """
-    src_roots = [Path(__file__).resolve().parents[2] / "src" / "hotspot3d" / "footprint",
-                 Path(__file__).resolve().parents[2] / "src" / "hotspot3d" / "robustness"]
+    src_roots = [Path(__file__).resolve().parents[2] / "src" / "sphare3d" / "footprint",
+                 Path(__file__).resolve().parents[2] / "src" / "sphare3d" / "robustness"]
     for root in src_roots:
         for path in sorted(root.rglob("*.py")):
             text = path.read_text(encoding="utf-8")

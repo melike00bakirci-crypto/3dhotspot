@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from hotspot3d.annotation.live_sources import (
+from sphare3d.annotation.live_sources import (
     LiveAnnotationSource,
     _parse_dssp,
 )
@@ -158,7 +158,7 @@ def test_disease_associations_maps_phenotypes_to_the_right_residue(tmp_path, mon
          "RCVaccession": "RCV1|RCV2"},
     ]
     monkeypatch.setattr(
-        "hotspot3d.annotation.live_sources.parse_variant_summary",
+        "sphare3d.annotation.live_sources.parse_variant_summary",
         lambda *a, **k: fake_rows)
     source._genomic_index.variants_residue_level_path.write_text(
         "schema_version\tresidue_index\tclinvar_ids\n1.0.0\t42\t1\n", encoding="utf-8")

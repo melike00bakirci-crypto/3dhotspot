@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from hotspot3d.data.classify import (
+from sphare3d.data.classify import (
     CLASS_BLB,
     CLASS_CONFLICT,
     CLASS_PLP,
@@ -27,10 +27,10 @@ from hotspot3d.data.classify import (
     residue_class,
     split_significance,
 )
-from hotspot3d.data.clinvar import normalize_records, parse_variant_summary, transcript_matches
-from hotspot3d.data.cohort import collapse_to_residues, evaluate_records
-from hotspot3d.data.hgvs import parse_clinvar_name, parse_protein_hgvs
-from hotspot3d.data.stage import _non_missense_true_cause
+from sphare3d.data.clinvar import normalize_records, parse_variant_summary, transcript_matches
+from sphare3d.data.cohort import collapse_to_residues, evaluate_records
+from sphare3d.data.hgvs import parse_clinvar_name, parse_protein_hgvs
+from sphare3d.data.stage import _non_missense_true_cause
 
 pytestmark = pytest.mark.unit
 

@@ -5,8 +5,8 @@ import pytest
 
 from synthetic_footprint import synthetic_run, two_cluster_centers
 
-from hotspot3d.footprint.stage import run_phase_c
-from hotspot3d.robustness.stage import run_phase_d
+from sphare3d.footprint.stage import run_phase_c
+from sphare3d.robustness.stage import run_phase_d
 
 pytestmark = [pytest.mark.integration, pytest.mark.slow]
 

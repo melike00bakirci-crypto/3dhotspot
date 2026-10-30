@@ -96,11 +96,11 @@ result. All four were found in the Stage A->E assessment of the `results_v2/` ba
 **1. `src/clinspot3d/` deleted.** 1.3 MB of orphaned bytecode from a previous package
 name: 100 `.pyc` files, zero `.py`, untracked and invisible to `git status` because
 `*.pyc` is ignored, last written 2026-09-01. It imported as a namespace package while
-every submodule raised `ModuleNotFoundError`, so it could not shadow `hotspot3d` and
+every submodule raised `ModuleNotFoundError`, so it could not shadow `sphare3d` and
 was outside `code_version`'s root — harmless, but a trap for any future
 `import clinspot3d`. `import clinspot3d` now fails cleanly. The stale
 `_editable_impl_clinspot3d.pth` remains in the venv; it points at `src`, which still
-exists for `hotspot3d`, so it is inert, and `.venv` is machine-local rather than repo
+exists for `sphare3d`, so it is inert, and `.venv` is machine-local rather than repo
 state.
 
 **2. Stage E reported one fact as two warnings.** `LITERATURE_MECHANISMS_NOT_RUN` and

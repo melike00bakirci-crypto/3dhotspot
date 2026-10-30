@@ -13,7 +13,7 @@ import types
 
 import pytest
 
-from hotspot3d.data.sources import (
+from sphare3d.data.sources import (
     ClinVarClient,
     GeneResolution,
     LiveStageASource,
@@ -22,9 +22,9 @@ from hotspot3d.data.sources import (
     assert_release_metadata,
     assert_source_complete,
 )
-from hotspot3d.data.stage import _resolve_source
-from hotspot3d.structure.cif import render_mmcif
-from hotspot3d.structure.sources import (
+from sphare3d.data.stage import _resolve_source
+from sphare3d.structure.cif import render_mmcif
+from sphare3d.structure.sources import (
     AFDB_MODEL_TEMPLATE,
     AlphaFoldClient,
     Atom,
@@ -32,7 +32,7 @@ from hotspot3d.structure.sources import (
     StructureResidue,
     assert_model_admissible,
 )
-from hotspot3d.utils.errors import BlockedError, EscalationRequired
+from sphare3d.utils.errors import BlockedError, EscalationRequired
 
 pytestmark = pytest.mark.unit
 

@@ -53,11 +53,11 @@ KCNA2 once its B=100,000 counterpart exists.
 
 - `config/pipeline.yaml` — `permutation.B_default: 10000` → `100000` (still FROZEN, new pinned
   value; comment updated to cite this decision).
-- `src/hotspot3d/utils/config.py` — the `FROZEN_ASSERTIONS` entry for `permutation.B_default`
+- `src/sphare3d/utils/config.py` — the `FROZEN_ASSERTIONS` entry for `permutation.B_default`
   updated from `10000` to `100000`, so `assert_frozen_methodology` pins the new value and a run
   configured with any other `B` (outside a synthetic context) is still rejected before any stage
   executes — the enforcement mechanism itself is unchanged, only the pinned constant is.
-- `src/hotspot3d/hotspot/stage.py` — Stage B's own explicit guard (independent of
+- `src/sphare3d/hotspot/stage.py` — Stage B's own explicit guard (independent of
   `assert_frozen_methodology`, checked again at Stage B entry) updated from `!= 10000` /
   `"frozen default 10000"` to `!= 100000` / `"frozen default 100000 (DECISION-B-DEFAULT-0001)"`,
   in both the non-synthetic `BlockedError` path and the synthetic `SYNTHETIC_INPUT_MODE` warning
@@ -111,8 +111,8 @@ The test suite was not updated. In particular:
 
 This does not affect the validity of any real-gene run — `config/pipeline.yaml`,
 `utils/config.py`, and `hotspot/stage.py` (the three places that actually govern what a live
-`hotspot3d run` does) are fully updated and internally consistent, confirmed by
-`hotspot3d validate-config` (`config_sha256 4ec9d6a82a9dcf42…`).
+`sphare3d run` does) are fully updated and internally consistent, confirmed by
+`sphare3d validate-config` (`config_sha256 4ec9d6a82a9dcf42…`).
 
 ## Post-decision re-runs (this session)
 

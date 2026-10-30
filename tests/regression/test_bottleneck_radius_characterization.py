@@ -27,7 +27,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.footprint import descriptors as desc
+from sphare3d.footprint import descriptors as desc
 
 pytestmark = pytest.mark.integration
 

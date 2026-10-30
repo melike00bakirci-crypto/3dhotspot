@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hotspot3d.spatial.ripley import (
+from sphare3d.spatial.ripley import (
     build_grid,
     cohort_statistics,
     intensity,
