@@ -19,9 +19,9 @@ authors:
   - family-names: "Özdemir"
     given-names: "Özkan"
     orcid: "https://orcid.org/0000-0002-2647-6416"
-version: 1.0.0
-doi: "10.5281/zenodo.22237976"
-date-released: "2026-09-01"
+version: 2.0.0
+doi: "10.5281/zenodo.23810018"
+date-released: "2026-10-30"
 license: MIT
 repository-code: "https://github.com/melike00bakirci-crypto/SPHARE3D"
 keywords:

@@ -3,19 +3,21 @@
 Draft paragraph for the manuscript. Every number below is taken verbatim from the run
 artefacts named at the end of this file; none of it is re-derived here.
 
-> **Provenance warning — read before citing.** The Zenodo archive
-> [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976) is pinned to release
-> `v1.0.0` (commit `c734256e`). **That archive does not contain the code that produced the
-> numbers below.** Between `v1.0.0` and the code version used here there are 34 changed
-> files under `src/`, +1502 / −485 lines, including the replacement of the footprint
-> radius selection procedure (`DECISION-RFP-CONTAINMENT-0001`). The code version that
-> produced these numbers, `ac7cce0f`, is reachable as commit `8cf973a` — now merged to
-> `main` — but it is not tagged and not archived, and the tree no longer reproduces that
-> digest: `DECISION-RENAME-SPHARE3D-0001` renamed the pipeline from `hotspot3d` to
-> `SPHARE3D`, which changed 602 lines of file content and therefore the source digest
-> (`ac7cce0f` → `4eb89577`). See **Code version mapping** below. **A new tagged release
-> and a new Zenodo version DOI are required before this paragraph can be submitted.**
-> Until then the availability statement is not satisfiable by a reader.
+> **Provenance note — read before citing.** `v2.0.0` is archived and is the release to
+> cite: version DOI [10.5281/zenodo.23810018](https://doi.org/10.5281/zenodo.23810018),
+> published 2026-10-30, under the same concept DOI
+> [10.5281/zenodo.22237975](https://doi.org/10.5281/zenodo.22237975) as `v1.0.0`, so the
+> lineage is intact. **Do not cite the `v1.0.0` version DOI
+> (10.5281/zenodo.22237976)** — that archive predates the containment rule and does not
+> contain the code that produced the numbers below.
+>
+> One residual mismatch, stated so nobody has to discover it: the archived `v2.0.0` tree
+> carries `code_version 4eb89577`, while every run reported here records `ac7cce0f`. The
+> two trees are the same pipeline — `DECISION-RENAME-SPHARE3D-0001` renamed `hotspot3d` to
+> `SPHARE3D`, which changed 602 lines of file content and therefore the content digest, and
+> no scientific constant, rule or result moved. The exact producing tree is commit
+> `8cf973a` in the archived repository's history. See **Code version mapping** below; a
+> reader reproducing the reported run checks that commit out rather than the tag.
 
 ---
 
@@ -23,10 +25,9 @@ artefacts named at the end of this file; none of it is re-derived here.
 
 > **Code and data availability.** The analysis pipeline (`sphare3d`) is openly available at
 > https://github.com/melike00bakirci-crypto/SPHARE3D, released under the MIT licence, and
-> archived at Zenodo under DOI [10.5281/zenodo.22237976](https://doi.org/10.5281/zenodo.22237976).
-> *[PENDING: cite the version DOI of the release that archives commit `8cf973a` (code
-> version `ac7cce0f`), or its renamed equivalent — see the provenance warning above and
-> the code version mapping below. Do not submit with the `v1.0.0` DOI.]* The pipeline is
+> archived at Zenodo under DOI [10.5281/zenodo.23810018](https://doi.org/10.5281/zenodo.23810018)
+> (release `v2.0.0`; the concept DOI 10.5281/zenodo.22237975 always resolves to the latest
+> version). The pipeline is
 > gene-independent: no step branches on a specific gene or protein, and every scientific
 > constant is fixed in a frozen, pre-registered configuration file whose SHA-256 digest is
 > recorded in each run.
@@ -119,7 +120,7 @@ RUN_ID         KCNA2_20261027T084336Z_ff721543_ac7cce0f
 config_sha256  ff7215430c7a23aec095135c63248c111269976f14fa8549ce1e7b930414f3fd
 code_version   ac7cce0f8f38efbe09e60b7e0af512a8f9695c6f970bf5c01f45f925693d525f
 results root   results_v3/
-git            commit 8cf973a on main (NOT tagged, NOT archived)
+git            commit 8cf973a on main; archived within the v2.0.0 release history
 ```
 
 This is the run under the **current** frozen configuration, which incorporates
@@ -153,7 +154,7 @@ obtain the exact code that produced the reported numbers:
 | `code_version` | tree | commit | what it produced |
 |---|---|---|---|
 | `ac7cce0f` | last `hotspot3d`-named tree | `8cf973a` | every run in `results_v3/`, including the KCNA2 run cited above |
-| `4eb89577` | first `sphare3d`-named tree | the rename commit | nothing yet |
+| `4eb89577` | first `sphare3d`-named tree | `0b4b3e3`, tagged `v2.0.0` | the archived release (10.5281/zenodo.23810018) |
 
 `config_sha256` is unaffected and remains `ff721543`: the digest covers the effective
 parameter tree, and the only occurrence of the old name in `config/pipeline.yaml` is a
