@@ -3,7 +3,8 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "SPHARE3D: gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
 abstract: >-
-  SPHARE3D takes an HGNC gene symbol, retrieves the ClinVar missense record and
+  SPHARE3D (Spatial Pathogenic Hotspot Analysis and Region Extraction, in 3D)
+  takes an HGNC gene symbol, retrieves the ClinVar missense record and
   the AlphaFold structure for its MANE Select transcript, and tests whether
   pathogenic missense variants cluster in three-dimensional space more than the
   structure itself would produce by chance under a structure-aware positional

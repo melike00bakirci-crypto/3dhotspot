@@ -1,7 +1,7 @@
 [project]
 name = "sphare3d"
-version = "1.0.0"
-description = "Gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
+version = "2.0.0"
+description = "SPHARE3D (Spatial Pathogenic Hotspot Analysis and Region Extraction) — gene-independent 3D spatial hotspot and footprint pipeline for pathogenic missense variants"
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",

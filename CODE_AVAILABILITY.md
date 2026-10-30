@@ -23,7 +23,8 @@ artefacts named at the end of this file; none of it is re-derived here.
 
 ## Draft paragraph
 
-> **Code and data availability.** The analysis pipeline (`sphare3d`) is openly available at
+> **Code and data availability.** The analysis pipeline, SPHARE3D (Spatial Pathogenic
+> Hotspot Analysis and Region Extraction, in 3D; package `sphare3d`), is openly available at
 > https://github.com/melike00bakirci-crypto/SPHARE3D, released under the MIT licence, and
 > archived at Zenodo under DOI [10.5281/zenodo.23810018](https://doi.org/10.5281/zenodo.23810018)
 > (release `v2.0.0`; the concept DOI 10.5281/zenodo.22237975 always resolves to the latest
@@ -169,10 +170,53 @@ The reported batch is the 70 runs enumerable as directories under `results_v3/`:
 from the ACMG SF v3.2 secondary-findings list, plus KCNA2 (the case gene) and MEFV, all
 under one `config_sha256` and one `code_version`.
 
-**Gap:** the criterion by which these 68 genes were selected from the full ACMG SF v3.2
-list is not recorded anywhere in this repository — not in `config/`, not in `docs/`. The
-run set is reconstructible from the result directories, but the *selection rule* is not,
-and it is therefore not currently citable. It must be written down before submission.
+### How the 68 were selected from the 84
+
+The ACMG SF v3.2 list carries **84 genes**. Three pre-screen tests were applied to the
+ClinVar `variant_summary` release before any run, and each excludes a gene for a reason
+that would otherwise have surfaced as a stage failure:
+
+1. **`L > 2700`** where `L` is the largest missense residue position observed —
+   AlphaFold DB does not serve a model at that length, so Stage A could not acquire a
+   structure.
+2. **`n_PLP < 1` or `n_BLB < 1`** — one of the two binary classes is empty, so the
+   cohort cannot support the B/LB contrast the power certificate requires, and the run
+   would terminate BLOCKED.
+3. **`L = 0`** — no parseable missense record at all.
+
+"Missense" for the pre-screen means: `Assembly = GRCh38`, `Type = single nucleotide
+variant`, a `(p.Xxx###Yyy)` three-letter protein change in the ClinVar `Name` field, and
+`ref != alt`. P/LP is {Pathogenic, Likely pathogenic, Pathogenic/Likely pathogenic} and
+B/LB is {Benign, Likely benign, Benign/Likely benign}, matching the pipeline's own binary
+policy. No review-status (star) filter was applied at this or any later stage.
+
+**68 genes passed all three.** Their `L` ranges from 52 to 2015, so none sits near the
+2700 threshold — the length cut is not doing borderline work.
+
+**16 genes were excluded:**
+
+```
+ACTA2  APC  APOB  BRCA2  CALM1  CALM2  CALM3  DSP
+FBN1   FLNC RYR1  RYR2   MYL2   MYL3   TNNC1  TTN
+```
+
+**Which gene failed which test was printed at screen time and not persisted**, so the
+per-gene attribution below is inference from protein length and is marked as such rather
+than reported as measurement:
+
+- exceeding the 2700-residue limit (test 1): `TTN`, `RYR1`, `RYR2`, `APOB`, `BRCA2`,
+  `DSP`, `FBN1`, `APC`, `FLNC` — all canonically longer than 2700 aa
+- therefore failing test 2 or 3: `ACTA2`, `CALM1`, `CALM2`, `CALM3`, `MYL2`, `MYL3`,
+  `TNNC1` — all short proteins, so length cannot be the cause
+
+Re-deriving the exact attribution requires the same ClinVar release and one pass of the
+pre-screen; it is cheap but has not been done.
+
+**What the exclusions mean for interpretation.** The 16 are not negative results and must
+never be reported as such. Nine are a limitation of the structural source, not of the
+method or of the gene; seven are cohorts that cannot support a binary contrast. The batch
+therefore characterises the pipeline over genes where the question is *askable*, and the
+denominator for any "worked in N of M genes" statement is 68, not 84.
 
 ## Superseded runs
 

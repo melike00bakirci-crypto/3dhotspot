@@ -21,8 +21,9 @@ from ..utils.hashing import code_version
 from .pipeline import SourceBundle, run_pipeline
 
 DESCRIPTION = (
-    "Gene-independent 3D spatial hotspot and footprint pipeline for pathogenic "
-    "missense variants. Methodology is FROZEN and pre-registered in config/pipeline.yaml."
+    "SPHARE3D — Spatial Pathogenic Hotspot Analysis and Region Extraction, in 3D. "
+    "A gene-independent pipeline for pathogenic missense variants: methodology is "
+    "FROZEN and pre-registered in config/pipeline.yaml."
 )
 
 
@@ -56,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     if args.version or args.command == "version":
-        print(f"SPHARE3D 1.0.0\ncode_version {code_version()}")
+        print(f"SPHARE3D 2.0.0\ncode_version {code_version()}")
         return 0
 
     if args.command == "validate-config":
